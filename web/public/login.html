@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlugVel — Monitor login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="device-frame">
+  <div class="device-screen" id="deviceScreen">
+
+  <header class="masthead-bar">
+    <div class="wrap">
+      <p class="brand-title"><b>[</b> FLUGVEL <b>]</b></p>
+      <nav class="tabs" role="tablist">
+        <a class="tab" role="tab" href="index.html"><span class="n">01</span> Overview</a>
+        <a class="tab" role="tab" href="manual.html"><span class="n">02</span> Manual</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-masthead">
+        <p>Device monitor</p>
+      </div>
+
+      <fieldset>
+        <legend>Login &nbsp;<span class="badge req">Required</span></legend>
+        <div class="form-error" id="formError"></div>
+        <form id="loginForm">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required autofocus>
+          <button type="submit" class="act" id="submitBtn">Log in</button>
+        </form>
+      </fieldset>
+    </div>
+  </div>
+
+  </div>
+  <div class="device-controls" aria-hidden="true">
+    <div class="encoder"><span class="mark" id="encoderMark"></span></div>
+    <div class="kobtn" id="deviceButton"></div>
+  </div>
+</div>
+
+<script src="script.js" defer></script>
+<script>
+const form = document.getElementById("loginForm");
+const errorBox = document.getElementById("formError");
+const submitBtn = document.getElementById("submitBtn");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  errorBox.classList.remove("show");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Logging in…";
+
+  try {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: document.getElementById("password").value }),
+    });
+
+    if (res.ok) {
+      window.location.href = "dashboard.html";
+      return;
+    }
+
+    const data = await res.json().catch(() => ({}));
+    errorBox.textContent = data.error || "Login failed. Try again.";
+    errorBox.classList.add("show");
+  } catch {
+    errorBox.textContent = "Couldn't reach the server. Check your connection and try again.";
+    errorBox.classList.add("show");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Log in";
+  }
+});
+</script>
+
+</body>
+</html>

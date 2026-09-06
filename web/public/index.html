@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlugVel — a knob that watches the sky</title>
+<meta name="description" content="FlugVel: a homemade desk gadget for flights, weather, your calendar, a focus timer, and two working games. Runs on one knob.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="styles.css">
+<!-- you found the source. the monitor isn't linked anywhere on purpose —
+     it's just me in there. if you really want in: ↑ ↑ ↓ ↓ Enter -->
+</head>
+<body>
+
+<div class="device-frame">
+  <div class="device-screen" id="deviceScreen">
+
+    <header class="masthead-bar">
+      <div class="wrap">
+        <p class="brand-title"><b>[</b> FLUGVEL <b>]</b></p>
+        <nav class="tabs" role="tablist">
+          <a class="tab active" role="tab" href="index.html"><span class="n">01</span> Overview</a>
+          <a class="tab" role="tab" href="manual.html"><span class="n">02</span> Manual</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <div class="hero">
+        <div class="eyebrow">Personal build <b>·</b> One knob <b>·</b> v1.0.4</div>
+        <h1>A little box that watches the sky so I don't have to.</h1>
+        <p class="sub">Flights, weather, your calendar, a focus timer, two working games. All on one knob. No app. You're looking at it right now, actually — this whole page is running on its screen.</p>
+        <div class="cta-row">
+          <a href="manual.html" class="act">Read the manual</a>
+        </div>
+      </div>
+    </div>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <div class="eyebrow">What it does</div>
+          <h2>Six screens. One knob.</h2>
+          <p>Turn to move, click to switch screens. Reorder or hide any of them.</p>
+        </div>
+        <div class="grid">
+          <div class="feature">
+            <div class="icon-badge">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M2 12l19-8-8 19-3-8-8-3z"/></svg>
+            </div>
+            <h3>Plane tracker</h3>
+            <p>Nearest aircraft overhead — callsign, altitude, speed, bearing. Quiet sky gets a random quote instead.</p>
+          </div>
+          <div class="feature">
+            <div class="icon-badge">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M6.5 18a4.2 4.2 0 0 1-.5-8.37 5.5 5.5 0 0 1 10.6-1.9A4.5 4.5 0 0 1 17 18H6.5z"/></svg>
+            </div>
+            <h3>Weather</h3>
+            <p>3–7 day forecast. Tap in for the hourly breakdown.</p>
+          </div>
+          <div class="feature">
+            <div class="icon-badge">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
+            </div>
+            <h3>Calendar</h3>
+            <p>Up to four iCal feeds, merged into one agenda. No duplicates, I promise.</p>
+          </div>
+          <div class="feature">
+            <div class="icon-badge">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M10 2h4"/></svg>
+            </div>
+            <h3>Focus timer</h3>
+            <p>Pomodoro, but on a microcontroller that also watches planes.</p>
+          </div>
+          <div class="feature">
+            <div class="icon-badge">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M7 8.5h10a4.5 4.5 0 0 1 4.3 5.8l-.3 1a3 3 0 0 1-5.3 1L14.6 15H9.4l-1.1 1.3a3 3 0 0 1-5.3-1l-.3-1A4.5 4.5 0 0 1 7 8.5z"/><path d="M6 10.8v3M4.5 12.3h3"/><circle cx="16" cy="11" r=".55" fill="currentColor" stroke="none"/><circle cx="18" cy="13" r=".55" fill="currentColor" stroke="none"/></svg>
+            </div>
+            <h3>Games</h3>
+            <p>Flappy Plane and Paddle Catch work. Two more are "coming soon" (narrator: they are not soon).</p>
+          </div>
+          <div class="feature">
+            <div class="icon-badge">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.6M12 18.4V21M21 12h-2.6M5.6 12H3M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4 5.6 5.6"/></svg>
+            </div>
+            <h3>Settings</h3>
+            <p>Theme, updates, factory reset — the usual suspects.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="eyebrow">No app, no account</div>
+          <h2>It runs its own settings page.</h2>
+          <p>Open it, poke around, close it. That's the whole flow.</p>
+        </div>
+        <div class="grid">
+          <div class="step-card">
+            <div class="step-head">
+              <span class="step-no">01</span>
+              <h3>Wi-Fi</h3>
+              <span class="badge req" style="margin-left:auto">Required</span>
+            </div>
+            <p>Pick a network, type the password. Done once, forgotten forever.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-head">
+              <span class="step-no">02</span>
+              <h3>Location</h3>
+              <span class="badge" style="margin-left:auto">Optional</span>
+            </div>
+            <p>Type a city or let it guess. It's usually right.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-head">
+              <span class="step-no">03</span>
+              <h3>Customise</h3>
+            </div>
+            <p>Screens, theme, brightness, units — all of it, saved instantly.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <div class="eyebrow">Make it yours</div>
+          <h2>Four looks, your call.</h2>
+          <p>Four color themes, 12/24-hour time, metric or imperial, and yes — left-handed mode.</p>
+        </div>
+        <div class="specs">
+          <div class="spec"><div class="num">1</div><div class="label">Knob (that's it)</div></div>
+          <div class="spec"><div class="num">240×320</div><div class="label">TFT display, 40MHz SPI</div></div>
+          <div class="spec"><div class="num">4</div><div class="label">Color themes</div></div>
+          <div class="spec"><div class="num">v1.0.4</div><div class="label">Current firmware</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt closing">
+      <div class="wrap">
+        <div class="section-head center">
+          <h2>That's it.</h2>
+          <p>That's the whole pitch, from a guy who spent way too long tuning a knob.</p>
+        </div>
+        <div class="cta-row">
+          <a href="manual.html" class="act">Read the manual</a>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <span>FlugVel — a personal project.</span>
+      </div>
+    </footer>
+
+  </div>
+  <div class="device-controls" aria-hidden="true">
+    <div class="encoder"><span class="mark" id="encoderMark"></span></div>
+    <div class="kobtn" id="deviceButton"></div>
+  </div>
+</div>
+
+<script src="script.js" defer></script>
+</body>
+</html>

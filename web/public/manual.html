@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlugVel — User Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="device-frame">
+  <div class="device-screen" id="deviceScreen">
+
+  <header class="masthead-bar">
+  <div class="wrap">
+    <p class="brand-title"><b>[</b> FLUGVEL <b>]</b></p>
+    <nav class="tabs" role="tablist">
+      <a class="tab" role="tab" href="index.html"><span class="n">01</span> Overview</a>
+      <a class="tab active" role="tab" href="manual.html"><span class="n">02</span> Manual</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap manual-layout">
+  <div class="toc">
+    <a href="#setup">1. First-time setup</a>
+    <a href="#controls">2. Controls</a>
+    <a href="#screens">3. The six screens</a>
+    <a href="#console">4. The setup console</a>
+    <a href="#settings">5. On-device Settings</a>
+    <a href="#updates">6. Firmware updates</a>
+    <a href="#reset">7. Factory reset</a>
+    <a href="#troubleshooting">8. Troubleshooting</a>
+  </div>
+
+  <div class="manual">
+    <h1 style="margin-top:0;">User Manual</h1>
+    <p class="sub" style="margin-bottom:0;">Everything you need to set up and use a FlugVel device. Covers firmware v1.0.4.</p>
+
+    <div class="manual-section">
+      <h2 id="setup">1. First-time setup</h2>
+      <p>On first boot (or after a factory reset), FlugVel starts its own Wi-Fi setup mode and shows a QR code on screen.</p>
+
+      <div class="step">
+        <div class="step-num">Step 1</div>
+        <p style="margin:6px 0 0;">Scan the QR code on the device's screen with your phone's camera. This joins your phone to the device's own temporary Wi-Fi network — no password typing needed. If you'd rather do it manually, the network name and address (<code>http://192.168.4.1</code>) are printed below the code.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 2</div>
+        <p style="margin:6px 0 0;">Your phone should automatically open the setup console (or visit <code>http://192.168.4.1</code> yourself). It opens on the <strong>Wi-Fi</strong> tab — pick your home network from the list and enter its password.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 3</div>
+        <p style="margin:6px 0 0;">Move to the <strong>Location</strong> tab. Tap "Use my current location" to fill it in automatically, or just type your city — FlugVel looks up the exact coordinates for you. Leaving it blank entirely estimates your location from your network instead, which is less precise. This is also where you set your timezone and which compass direction the screen physically faces.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 4 <span class="tag">optional</span></div>
+        <p style="margin:6px 0 0;">While you're here, the <strong>Customise</strong> tab is already available too — you can set your theme, screen order, calendar feeds and every other preference right now instead of later. Nothing stops you from skipping this and coming back to it anytime (see §4).</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 5</div>
+        <p style="margin:6px 0 0;">Save. The device joins your Wi-Fi and switches to normal operation. If the Wi-Fi password was wrong, it'll tell you and let you try again.</p>
+      </div>
+
+      <div class="callout">All of this only happens once. FlugVel remembers your Wi-Fi and settings across restarts and power cuts.</div>
+    </div>
+
+    <div class="manual-section">
+      <h2 id="controls">2. Controls</h2>
+      <p>FlugVel has exactly two physical controls, plus a persistent bottom strip that always shows what they currently do:</p>
+      <table>
+        <tr><th>Control</th><th>What it does</th></tr>
+        <tr><td>Turn the knob</td><td>Moves within the current screen (picks a day on Weather, scrolls the Calendar agenda, adjusts a value in Settings).</td></tr>
+        <tr><td>Click the knob</td><td>Jumps to the next screen in your cycle order, wrapping back around. Settings always comes last and can't be hidden or reordered.</td></tr>
+        <tr><td>The other button</td><td>Confirms/acts within the current screen — starts the timer, flaps in Flappy Plane, opens a menu item, expands a calendar entry. Screen-specific, see below.</td></tr>
+        <tr><td>Action legend</td><td>The strip along the bottom of the screen — not a control itself, but tells you exactly what the knob and button do right now on whatever screen and state you're in. Can be turned off in Customise if you'd rather have the extra screen space.</td></tr>
+      </table>
+      <p>Left-handed, or wired up rotated? The Customise tab has a <strong>left-handed mode</strong> (flips the whole layout 180° and reverses the encoder to match) and a separate <strong>knob reversed</strong> option for when the encoder itself is just wired backwards.</p>
+    </div>
+
+    <div class="manual-section">
+      <h2 id="screens">3. The six screens</h2>
+      <p>Default order is Plane → Weather → Games → Focus → Calendar → Settings, but you can reorder or hide any of these except Settings from the Customise tab — so if you never play the games, they don't have to be in your cycle at all.</p>
+
+      <h3>Plane</h3>
+      <p>Shows the nearest aircraft currently overhead — callsign, altitude, speed and bearing — with an optional flyover animation when one passes near. When the sky is empty, it shows a bouncing callsign along with a quote of the day (both can be turned off individually). A minimum-altitude filter is available if you'd rather not see everything down to ground level.</p>
+
+      <h3>Weather</h3>
+      <p>A forecast table you can size from 3 to 7 days. Turn the knob to move between days, click the other button to open that day's hour-by-hour breakdown; turn again to flip through hours, press again to go back to the week view. Condition icons and how far ahead it refreshes (and whether it quietly prefetches each day in the background) are all adjustable.</p>
+
+      <h3>Games</h3>
+      <p>A small games menu. <strong>Flappy Plane</strong> (tap to flap and dodge pipes) and <strong>Paddle Catch</strong> (turn the knob to slide a paddle) are playable today; <strong>Reaction Timer</strong> and <strong>Simon Says</strong> are listed as "Coming Soon." Any entry can be hidden from the menu individually in Customise. Turning the knob during a game or on the game-over screen backs out to the menu.</p>
+
+      <h3>Focus</h3>
+      <p>A Pomodoro-style timer. Turn the knob to set your focus length (5–120 minutes) and break length (1–30 minutes), then press the button to start. Two optional behaviors: lock screen-switching while a session is running (so a stray knob click doesn't abandon it), and auto-start the break the moment focus ends instead of waiting for a button press.</p>
+
+      <h3>Calendar</h3>
+      <p>An agenda of the next ~60 days, pulled from up to four of your own read-only iCal feed URLs (set these up in Customise — most calendar apps have a "secret address in iCal format" you can copy from their sharing settings). Turn the knob to move through the list, press to open or close a detail view for one event. Feeds sharing the same event get merged into one entry rather than showing it twice; you can also cap how many events are held in memory and hide events once they've already ended.</p>
+
+      <h3>Settings</h3>
+      <p>Always last in the cycle, and the one screen that can't be hidden — it's covered in full in §5. It's mostly device info, a quick on-device theme picker, and the doorway to updates/restart/reset; the deeper customisation lives in the setup console instead (§4).</p>
+    </div>
+
+    <div class="manual-section">
+      <h2 id="console">4. The setup console</h2>
+      <p>Beyond the first-time setup, FlugVel keeps its configuration page running as long as it's on your Wi-Fi — you don't need the knob for most settings at all. From <strong>Settings → Customise</strong> on the device, it shows a QR code and an address; scan it or type the address into any browser on the same network, and it opens straight to the Customise tab.</p>
+      <p>If typing it by hand, use the friendly name shown on the device (something like <code>flugvel-a1b2.local</code>) — if your phone or router doesn't resolve <code>.local</code> addresses, use the numeric IP address shown instead (also on the Settings → Device Info screen).</p>
+      <p>The console has three tabs:</p>
+      <table>
+        <tr><th>Tab</th><th>What's there</th></tr>
+        <tr><td><span class="tag">01</span> Wi-Fi</td><td>Change which network the device connects to. Only really needed again if you move it or change routers.</td></tr>
+        <tr><td><span class="tag">02</span> Location</td><td>City/coordinates, timezone, screen-facing direction — same fields as first-time setup.</td></tr>
+        <tr><td><span class="tag">03</span> Customise</td><td>Everything else: theme, brightness, date/time format, units, left-handed mode, action legend on/off, screen order and visibility, startup behavior (boot to home vs. resume the last screen you were on), and every per-screen option described in §3 — plus your calendar feeds.</td></tr>
+      </table>
+      <p>Changes save straight back to the device over Wi-Fi — no reboot needed, no app to install. Closing the page after saving is all there is to it.</p>
+    </div>
+
+    <div class="manual-section">
+      <h2 id="settings">5. On-device Settings</h2>
+      <table>
+        <tr><th>Option</th><th>What it's for</th></tr>
+        <tr><td>Device Info</td><td>Wi-Fi status, IP address and uptime — plus the QR code/address for the setup console.</td></tr>
+        <tr><td>Theme</td><td>A quick picker for the four built-in color themes (MonoDotMatrix, AmberTerminal, GreenPhosphor, IceBlue) — turn the knob to preview each live before confirming.</td></tr>
+        <tr><td>Customise</td><td>Shows the QR code/address to open the full setup console on your phone (§4) rather than clicking through everything with the knob.</td></tr>
+        <tr><td>Update</td><td>Manually checks for new firmware right now (see below).</td></tr>
+        <tr><td>Restart</td><td>Reboots the device.</td></tr>
+        <tr><td>Factory Reset</td><td>Same effect as the button-hold gesture below, reachable from the menu instead.</td></tr>
+      </table>
+    </div>
+
+    <div class="manual-section">
+      <h2 id="updates">6. Firmware updates</h2>
+      <p>FlugVel can update its own firmware over Wi-Fi. It checks a small version file online and compares it to what's currently installed.</p>
+      <ul>
+        <li>Updates are checked automatically after connecting to Wi-Fi at boot, and any time you select <strong>Update</strong> from the Settings menu.</li>
+        <li>If a newer version is available, the screen shows the new version number and release notes, and asks you to confirm before downloading.</li>
+        <li>Downloading and flashing takes a minute or two — a progress bar is shown. The device reboots on its own once the update finishes successfully.</li>
+        <li>If an update fails partway through, the device simply keeps running its current firmware — nothing is lost.</li>
+      </ul>
+    </div>
+
+    <div class="manual-section">
+      <h2 id="reset">7. Factory reset</h2>
+      <p>To wipe saved Wi-Fi credentials and settings and start over:</p>
+      <div class="step">
+        <p style="margin:0;">Press and hold <strong>both</strong> buttons (the knob's click button and the other button) together for <strong>15 seconds</strong>. The screen will show "Factory Reset..." and the device will restart into first-time setup mode. The same thing is available as a menu item under Settings → Factory Reset if you'd rather not hold both buttons.</p>
+      </div>
+      <div class="callout danger">This clears everything — Wi-Fi password, location, theme, screen order, calendar feeds and every other preference. You'll need to go through first-time setup again afterward.</div>
+    </div>
+
+    <div class="manual-section">
+      <h2 id="troubleshooting">8. Troubleshooting</h2>
+      <table>
+        <tr><th>Problem</th><th>Try this</th></tr>
+        <tr><td>No QR code / setup screen on first boot</td><td>Power-cycle the device. If it still doesn't appear, it may already have Wi-Fi credentials saved — try a factory reset (above).</td></tr>
+        <tr><td>"Failed to connect" after entering Wi-Fi password</td><td>Double-check the password and that you selected the right network, then try again — the setup page stays open for another attempt.</td></tr>
+        <tr><td>No planes ever show up</td><td>Check your location was set correctly (Settings → Device Info or the console's Location tab), and that the minimum-altitude filter in Customise isn't set higher than you expect.</td></tr>
+        <tr><td>Weather looks wrong for your area</td><td>Re-enter your location manually in the console rather than relying on network-based estimation, which is approximate.</td></tr>
+        <tr><td>Calendar shows nothing, or the wrong events</td><td>Confirm each feed URL in Customise is a direct link to an .ics file (not a webpage), and that the feed is still marked enabled.</td></tr>
+        <tr><td>Can't reach the setup console by typing the .local address</td><td>Some phones/routers don't resolve <code>.local</code> names. Use the numeric IP address shown on Settings → Device Info instead.</td></tr>
+        <tr><td>Stuck on an old firmware version</td><td>Go to Settings → Update to force a manual check rather than waiting for the automatic one at boot.</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+  <footer>
+    <div class="wrap">
+      <span>FlugVel — a personal project.</span>
+    </div>
+  </footer>
+
+  </div>
+  <div class="device-controls" aria-hidden="true">
+    <div class="encoder"><span class="mark" id="encoderMark"></span></div>
+    <div class="kobtn" id="deviceButton"></div>
+  </div>
+</div>
+
+<script src="script.js" defer></script>
+</body>
+</html>

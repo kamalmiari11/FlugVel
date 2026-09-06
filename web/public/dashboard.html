@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlugVel — Device Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="device-frame">
+  <div class="device-screen" id="deviceScreen">
+
+  <header class="masthead-bar">
+  <div class="wrap">
+    <p class="brand-title"><b>[</b> FLUGVEL <b>]</b></p>
+    <nav class="tabs" role="tablist">
+      <a class="tab" role="tab" href="index.html"><span class="n">01</span> Overview</a>
+      <a class="tab" role="tab" href="manual.html"><span class="n">02</span> Manual</a>
+    </nav>
+    <div class="bar-actions">
+      <a href="#" class="act ghost small" id="logoutBtn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap" id="app" style="display:none;">
+  <div class="dash-header">
+    <h1>Devices</h1>
+    <button class="act small" id="addBtn">+ Add device</button>
+  </div>
+
+  <div class="hint-banner">
+    Status is set by hand for now — the firmware doesn't report in automatically yet. Update a device's status here whenever you check on it.
+  </div>
+
+  <div class="device-table-wrap">
+    <table id="deviceTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Owner</th>
+          <th>Location</th>
+          <th>Status</th>
+          <th>Notes</th>
+          <th>Updated</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="deviceRows"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      No devices yet — add the first one to start tracking it.
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="loadingState">
+  <p style="color: var(--dim); padding: 60px 0; text-align:center; font-size:13px;">Loading…</p>
+</div>
+
+<!-- Add/Edit modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2 id="modalTitle">Add device</h2>
+    <form id="deviceForm">
+      <input type="hidden" id="deviceId">
+      <fieldset>
+        <legend>Device</legend>
+        <label for="fieldName">Name</label>
+        <input type="text" id="fieldName" required placeholder="e.g. Kamal's desk unit">
+        <label for="fieldOwner">Owner</label>
+        <input type="text" id="fieldOwner" placeholder="Who has this one">
+        <label for="fieldLocation">Location</label>
+        <input type="text" id="fieldLocation" placeholder="e.g. Amsterdam">
+        <label for="fieldStatus">Status</label>
+        <select id="fieldStatus">
+          <option value="unknown">Unknown</option>
+          <option value="online">Online</option>
+          <option value="offline">Offline</option>
+        </select>
+        <label for="fieldNotes">Notes</label>
+        <textarea id="fieldNotes" rows="3" placeholder="Anything worth remembering about this unit"></textarea>
+      </fieldset>
+      <div class="modal-actions">
+        <button type="button" class="act ghost small" id="cancelBtn">Cancel</button>
+        <button type="submit" class="act small" id="saveBtn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const app = document.getElementById("app");
+const loadingState = document.getElementById("loadingState");
+const deviceRows = document.getElementById("deviceRows");
+const emptyState = document.getElementById("emptyState");
+const modalBackdrop = document.getElementById("modalBackdrop");
+const modalTitle = document.getElementById("modalTitle");
+const deviceForm = document.getElementById("deviceForm");
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str ?? "";
+  return div.innerHTML;
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso.replace(" ", "T") + "Z");
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleString();
+}
+
+async function checkAuth() {
+  const res = await fetch("/api/me");
+  if (!res.ok) {
+    window.location.href = "login.html";
+    return false;
+  }
+  return true;
+}
+
+async function loadDevices() {
+  const res = await fetch("/api/devices");
+  if (res.status === 401) {
+    window.location.href = "login.html";
+    return;
+  }
+  const devices = await res.json();
+  renderDevices(devices);
+}
+
+function renderDevices(devices) {
+  deviceRows.innerHTML = "";
+  emptyState.style.display = devices.length === 0 ? "block" : "none";
+
+  for (const d of devices) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(d.name)}</td>
+      <td>${escapeHtml(d.owner) || "—"}</td>
+      <td>${escapeHtml(d.location) || "—"}</td>
+      <td><span class="status-pill ${d.status}"><span class="dot"></span>${escapeHtml(d.status)}</span></td>
+      <td>${escapeHtml(d.notes) || "—"}</td>
+      <td>${formatDate(d.updated_at)}</td>
+      <td class="row-actions">
+        <button data-action="edit" data-id="${d.id}">Edit</button>
+        <button data-action="delete" data-id="${d.id}">Delete</button>
+      </td>
+    `;
+    deviceRows.appendChild(tr);
+  }
+
+  // Stash the raw data on rows so Edit can repopulate the form without a refetch.
+  deviceRows.querySelectorAll("tr").forEach((tr, i) => (tr.dataset.device = JSON.stringify(devices[i])));
+}
+
+function openModal(device) {
+  deviceForm.reset();
+  document.getElementById("deviceId").value = device?.id || "";
+  document.getElementById("fieldName").value = device?.name || "";
+  document.getElementById("fieldOwner").value = device?.owner || "";
+  document.getElementById("fieldLocation").value = device?.location || "";
+  document.getElementById("fieldStatus").value = device?.status || "unknown";
+  document.getElementById("fieldNotes").value = device?.notes || "";
+  modalTitle.textContent = device ? "Edit device" : "Add device";
+  modalBackdrop.classList.add("show");
+}
+
+function closeModal() {
+  modalBackdrop.classList.remove("show");
+}
+
+document.getElementById("addBtn").addEventListener("click", () => openModal(null));
+document.getElementById("cancelBtn").addEventListener("click", closeModal);
+modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) closeModal(); });
+
+deviceRows.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const tr = btn.closest("tr");
+  const device = JSON.parse(tr.dataset.device);
+
+  if (btn.dataset.action === "edit") {
+    openModal(device);
+  } else if (btn.dataset.action === "delete") {
+    if (!confirm(`Remove "${device.name}" from the monitor? This can't be undone.`)) return;
+    const res = await fetch(`/api/devices/${device.id}`, { method: "DELETE" });
+    if (res.ok) loadDevices();
+    else alert("Couldn't delete that device.");
+  }
+});
+
+deviceForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = document.getElementById("deviceId").value;
+  const payload = {
+    name: document.getElementById("fieldName").value.trim(),
+    owner: document.getElementById("fieldOwner").value.trim(),
+    location: document.getElementById("fieldLocation").value.trim(),
+    status: document.getElementById("fieldStatus").value,
+    notes: document.getElementById("fieldNotes").value.trim(),
+  };
+
+  const url = id ? `/api/devices/${id}` : "/api/devices";
+  const method = id ? "PUT" : "POST";
+
+  const res = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (res.ok) {
+    closeModal();
+    loadDevices();
+  } else {
+    const data = await res.json().catch(() => ({}));
+    alert(data.error || "Couldn't save that device.");
+  }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async (e) => {
+  e.preventDefault();
+  await fetch("/api/logout", { method: "POST" });
+  window.location.href = "login.html";
+});
+
+(async function init() {
+  const ok = await checkAuth();
+  if (!ok) return;
+  await loadDevices();
+  loadingState.style.display = "none";
+  app.style.display = "block";
+})();
+</script>
+
+  </div>
+  <div class="device-controls" aria-hidden="true">
+    <div class="encoder"><span class="mark" id="encoderMark"></span></div>
+    <div class="kobtn" id="deviceButton"></div>
+  </div>
+</div>
+
+<script src="script.js" defer></script>
+</body>
+</html>
