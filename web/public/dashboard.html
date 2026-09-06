@@ -93,6 +93,31 @@
   </div>
 </div>
 
+<!-- Push-update modal: queues a specific firmware release for one device.
+     The device applies it silently on its next check-in - see
+     web/functions/api/devices/checkin.js + src/api/checkin_api.cpp. -->
+<div class="modal-backdrop" id="updateModalBackdrop">
+  <div class="modal">
+    <h2>Push update</h2>
+    <p class="hint" id="updateModalDeviceName"></p>
+    <form id="updateForm">
+      <input type="hidden" id="updateDeviceId">
+      <fieldset>
+        <legend>Release</legend>
+        <label for="updateVersionSelect">Version</label>
+        <select id="updateVersionSelect" required>
+          <option value="">Loading releases…</option>
+        </select>
+        <p class="hint" id="updateNotesPreview"></p>
+      </fieldset>
+      <div class="modal-actions">
+        <button type="button" class="act ghost small" id="updateCancelBtn">Cancel</button>
+        <button type="submit" class="act small" id="updateSubmitBtn">Push</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 const app = document.getElementById("app");
 const loadingState = document.getElementById("loadingState");
@@ -101,6 +126,11 @@ const emptyState = document.getElementById("emptyState");
 const modalBackdrop = document.getElementById("modalBackdrop");
 const modalTitle = document.getElementById("modalTitle");
 const deviceForm = document.getElementById("deviceForm");
+const updateModalBackdrop = document.getElementById("updateModalBackdrop");
+const updateModalDeviceName = document.getElementById("updateModalDeviceName");
+const updateForm = document.getElementById("updateForm");
+const updateVersionSelect = document.getElementById("updateVersionSelect");
+const updateNotesPreview = document.getElementById("updateNotesPreview");
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -163,7 +193,7 @@ function renderDevices(devices) {
     const lastSeenTitle = lastSeenIso ? formatDate(lastSeenIso) : formatDate(d.updated_at);
     const lastSeenText = lastSeenIso ? formatRelative(lastSeenIso) : formatDate(d.updated_at);
     const firmwareCell = d.firmware_version
-      ? `${escapeHtml(d.firmware_version)}${Number.isFinite(d.signal_dbm) ? `<br><span class="dim-sub">${d.signal_dbm} dBm</span>` : ""}`
+      ? `${escapeHtml(d.firmware_version)}${Number.isFinite(d.signal_dbm) ? `<br><span class="dim-sub">${d.signal_dbm} dBm</span>` : ""}${d.pending_update_version ? `<br><span class="dim-sub">→ v${escapeHtml(d.pending_update_version)} queued</span>` : ""}`
       : "—";
 
     tr.innerHTML = `
@@ -176,6 +206,9 @@ function renderDevices(devices) {
       <td title="${lastSeenTitle}">${lastSeenText}</td>
       <td class="row-actions">
         <button data-action="edit" data-id="${d.id}">Edit</button>
+        ${d.pending_update_version
+          ? `<button data-action="cancel-update" data-id="${d.id}">Cancel update</button>`
+          : `<button data-action="push-update" data-id="${d.id}">Push update</button>`}
         <button data-action="delete" data-id="${d.id}">Delete</button>
       </td>
     `;
@@ -202,6 +235,37 @@ function closeModal() {
   modalBackdrop.classList.remove("show");
 }
 
+// Releases are fetched fresh each time the modal opens rather than cached -
+// this is an occasional admin action, not something worth keeping in sync.
+async function openUpdateModal(device) {
+  document.getElementById("updateDeviceId").value = device.id;
+  updateModalDeviceName.textContent = `${device.name} — currently ${device.firmware_version || "unknown"}`;
+  updateNotesPreview.textContent = "";
+  updateVersionSelect.innerHTML = `<option value="">Loading releases…</option>`;
+  updateModalBackdrop.classList.add("show");
+
+  const res = await fetch("/api/releases");
+  if (!res.ok) {
+    updateVersionSelect.innerHTML = `<option value="">Couldn't load releases</option>`;
+    return;
+  }
+  const releases = await res.json();
+  if (releases.length === 0) {
+    updateVersionSelect.innerHTML = `<option value="">No published releases yet</option>`;
+    return;
+  }
+
+  updateVersionSelect.innerHTML = releases
+    .map((r, i) => `<option value="${i}">v${escapeHtml(r.version)}</option>`)
+    .join("");
+  updateVersionSelect.dataset.releases = JSON.stringify(releases);
+  updateNotesPreview.textContent = releases[0].notes || "";
+}
+
+function closeUpdateModal() {
+  updateModalBackdrop.classList.remove("show");
+}
+
 document.getElementById("addBtn").addEventListener("click", () => openModal(null));
 document.getElementById("cancelBtn").addEventListener("click", closeModal);
 modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) closeModal(); });
@@ -214,11 +278,50 @@ deviceRows.addEventListener("click", async (e) => {
 
   if (btn.dataset.action === "edit") {
     openModal(device);
+  } else if (btn.dataset.action === "push-update") {
+    openUpdateModal(device);
+  } else if (btn.dataset.action === "cancel-update") {
+    const res = await fetch(`/api/devices/${device.id}/push-update`, { method: "DELETE" });
+    if (res.ok) loadDevices();
+    else alert("Couldn't cancel that update.");
   } else if (btn.dataset.action === "delete") {
     if (!confirm(`Remove "${device.name}" from the monitor? This can't be undone.`)) return;
     const res = await fetch(`/api/devices/${device.id}`, { method: "DELETE" });
     if (res.ok) loadDevices();
     else alert("Couldn't delete that device.");
+  }
+});
+
+updateVersionSelect.addEventListener("change", () => {
+  const releases = JSON.parse(updateVersionSelect.dataset.releases || "[]");
+  const chosen = releases[updateVersionSelect.value];
+  updateNotesPreview.textContent = chosen ? chosen.notes || "" : "";
+});
+
+updateModalBackdrop.addEventListener("click", (e) => {
+  if (e.target === updateModalBackdrop) closeUpdateModal();
+});
+document.getElementById("updateCancelBtn").addEventListener("click", closeUpdateModal);
+
+updateForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const releases = JSON.parse(updateVersionSelect.dataset.releases || "[]");
+  const chosen = releases[updateVersionSelect.value];
+  if (!chosen) return;
+
+  const id = document.getElementById("updateDeviceId").value;
+  const res = await fetch(`/api/devices/${id}/push-update`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ version: chosen.version, url: chosen.url }),
+  });
+
+  if (res.ok) {
+    closeUpdateModal();
+    loadDevices();
+  } else {
+    const data = await res.json().catch(() => ({}));
+    alert(data.error || "Couldn't queue that update.");
   }
 });
 

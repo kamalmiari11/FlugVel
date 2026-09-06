@@ -8,5 +8,7 @@ CREATE TABLE IF NOT EXISTS devices (
   firmware_version TEXT DEFAULT '',
   signal_dbm INTEGER,
   last_seen_at TEXT,                        -- last successful check-in from the device itself (UTC, datetime('now') format). NULL = never checked in, still on manual status.
+  pending_update_version TEXT,              -- set by POST /api/devices/:id/push-update when an admin queues a remote update; handed to the device on its next check-in, then cleared.
+  pending_update_url TEXT,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

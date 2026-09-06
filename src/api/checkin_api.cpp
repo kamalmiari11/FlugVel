@@ -1,6 +1,7 @@
 #include "checkin_api.h"
 #include "../version.h"
 #include "../network/CaptivePortal.h"
+#include "update_check.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -34,6 +35,37 @@ void sendCheckin(const String& location) {
     int code = http.POST(payload);
     if (code != 200) {
         Serial.printf("[Checkin] Failed, HTTP %d\n", code);
+        http.end();
+        return;
     }
+
+    // The response can carry a one-time "push this update now" instruction
+    // (see web/functions/api/devices/checkin.js) - an admin queued a
+    // specific release for this device from the dashboard, e.g. to fix a
+    // struggling unit remotely without asking the owner to touch it. The
+    // server hands it out exactly once and clears it on its side the
+    // moment it's included in a response, so there's nothing here to
+    // acknowledge - just apply it.
+    String responseBody = http.getString();
     http.end();
+
+    DynamicJsonDocument resp(512); // matches update_check.cpp's manifest parse - similarly small, version/url-shaped payload
+    DeserializationError err = deserializeJson(resp, responseBody);
+    if (err) return; // nothing more to do - the check-in itself already succeeded
+
+    if (!resp["update"].isNull()) {
+        String updateUrl = resp["update"]["url"].as<String>();
+        String updateVersion = resp["update"]["version"].as<String>();
+        if (updateUrl.length() > 0) {
+            Serial.printf("[Checkin] Remote update queued: %s (%s)\n", updateVersion.c_str(), updateUrl.c_str());
+            // Blocking, and reboots the device itself on success - fine to
+            // call from here, this whole function already runs on the
+            // background task's own core (see main.cpp's backgroundNetworkTask),
+            // same reasoning as the flight/weather/quote fetches beside it.
+            bool ok = performOTAUpdate(updateUrl, nullptr);
+            if (!ok) {
+                Serial.println("[Checkin] Remote-triggered update failed - staying on current firmware");
+            }
+        }
+    }
 }
