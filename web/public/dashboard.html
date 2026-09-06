@@ -33,7 +33,7 @@
   </div>
 
   <div class="hint-banner">
-    Status is set by hand for now — the firmware doesn't report in automatically yet. Update a device's status here whenever you check on it.
+    Devices report in on their own every 30 seconds. Status and last-seen update automatically — the fields below are just for labeling a unit (name, owner, location override, notes).
   </div>
 
   <div class="device-table-wrap">
@@ -44,8 +44,9 @@
           <th>Owner</th>
           <th>Location</th>
           <th>Status</th>
+          <th>Firmware</th>
           <th>Notes</th>
-          <th>Updated</th>
+          <th>Last seen</th>
           <th></th>
         </tr>
       </thead>
@@ -114,6 +115,25 @@ function formatDate(iso) {
   return d.toLocaleString();
 }
 
+// "Last seen" wants relative time ("2m ago") at a glance, with the exact
+// timestamp still available on hover. Falls back to updated_at for a
+// device that has never checked in on its own (last_seen_at is null) —
+// so a hand-added device still shows something instead of a blank cell.
+function formatRelative(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso.replace(" ", "T") + "Z");
+  if (isNaN(d.getTime())) return "—";
+  const seconds = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (seconds < 5) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 async function checkAuth() {
   const res = await fetch("/api/me");
   if (!res.ok) {
@@ -139,13 +159,21 @@ function renderDevices(devices) {
 
   for (const d of devices) {
     const tr = document.createElement("tr");
+    const lastSeenIso = d.last_seen_at || null;
+    const lastSeenTitle = lastSeenIso ? formatDate(lastSeenIso) : formatDate(d.updated_at);
+    const lastSeenText = lastSeenIso ? formatRelative(lastSeenIso) : formatDate(d.updated_at);
+    const firmwareCell = d.firmware_version
+      ? `${escapeHtml(d.firmware_version)}${Number.isFinite(d.signal_dbm) ? `<br><span class="dim-sub">${d.signal_dbm} dBm</span>` : ""}`
+      : "—";
+
     tr.innerHTML = `
       <td>${escapeHtml(d.name)}</td>
       <td>${escapeHtml(d.owner) || "—"}</td>
       <td>${escapeHtml(d.location) || "—"}</td>
       <td><span class="status-pill ${d.status}"><span class="dot"></span>${escapeHtml(d.status)}</span></td>
+      <td>${firmwareCell}</td>
       <td>${escapeHtml(d.notes) || "—"}</td>
-      <td>${formatDate(d.updated_at)}</td>
+      <td title="${lastSeenTitle}">${lastSeenText}</td>
       <td class="row-actions">
         <button data-action="edit" data-id="${d.id}">Edit</button>
         <button data-action="delete" data-id="${d.id}">Delete</button>

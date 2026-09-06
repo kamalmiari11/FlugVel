@@ -33,6 +33,7 @@
 #include "api/geocoding.h"
 #include "api/quote_api.h"
 #include "api/update_check.h"
+#include "api/checkin_api.h"
 
 #include "screens/UpdatePromptScreen.h"
 #include "version.h"
@@ -409,6 +410,16 @@ void checkQuoteOfTheDayBG() {
 void backgroundNetworkTask(void* pvParameters) {
     unsigned long bgLastFlightCheck = 0;
 
+    // How often this unit phones home to the dashboard (see
+    // src/api/checkin_api.cpp + web/functions/api/devices/checkin.js).
+    // 30s keeps "last seen" feeling live without troubling D1's free-tier
+    // write quota (100k rows/day - one device at 30s is ~2,880/day, so the
+    // quota comfortably covers dozens of these before it'd ever matter).
+    // The dashboard calls a unit offline after 90s of silence (3 missed
+    // beats), so this interval and that threshold should change together.
+    const unsigned long CHECKIN_INTERVAL_MS = 30000UL;
+    unsigned long bgLastCheckin = 0;
+
     for (;;) {
         if (wifiConnected) {
             unsigned long now = millis();
@@ -422,6 +433,15 @@ void backgroundNetworkTask(void* pvParameters) {
             }
 
             checkQuoteOfTheDayBG();
+
+            if (now - bgLastCheckin >= CHECKIN_INTERVAL_MS) {
+                bgLastCheckin = now;
+                String loc = portal.getCity();
+                if (portal.getCountry().length() > 0) {
+                    loc += (loc.length() > 0 ? ", " : "") + portal.getCountry();
+                }
+                sendCheckin(loc);
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(500));

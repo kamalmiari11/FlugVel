@@ -580,6 +580,7 @@ tr:last-child td { border-bottom: none; }
 .status-pill.offline { color: var(--req); background: rgba(156,51,18,.08); }
 .status-pill.unknown { color: var(--dim); background: rgba(92,98,73,.10); }
 .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.dim-sub { color: var(--dim); font-size: 11px; }
 .row-actions { display: flex; gap: 6px; }
 .row-actions button {
   background: transparent;
