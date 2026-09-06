@@ -85,8 +85,8 @@ This prints a URL like `https://flugvel-web.pages.dev`. Open it and check:
 
 - `/` — the landing page
 - `/manual.html` — the manual
-- `/login.html` — log in with the `ADMIN_PASSWORD` you set
-- `/dashboard.html` — should load (empty) after logging in
+- `/p-f838d1.html` — log in with the `ADMIN_PASSWORD` you set
+- `/m-223d0f.html` — should load (empty) after logging in
 
 If the dashboard 500s or the D1 binding isn't found, go to the Cloudflare
 dashboard → **Workers & Pages** → `flugvel-web` → **Settings** → **Functions**
@@ -113,8 +113,8 @@ Namecheap as the registrar — nothing about ownership changes):
    records and SSL certificate automatically since it already manages the
    zone.
 
-After that, `https://flugvel.com`, `/manual.html`, `/login.html`, and
-`/dashboard.html` all serve straight from this project — no separate
+After that, `https://flugvel.com`, `/manual.html`, `/p-f838d1.html`, and
+`/m-223d0f.html` all serve straight from this project — no separate
 subdomain needed.
 
 ## Redeploying after changes

@@ -167,7 +167,7 @@ function formatRelative(iso) {
 async function checkAuth() {
   const res = await fetch("/api/me");
   if (!res.ok) {
-    window.location.href = "login.html";
+    window.location.href = "p-f838d1.html";
     return false;
   }
   return true;
@@ -176,7 +176,7 @@ async function checkAuth() {
 async function loadDevices() {
   const res = await fetch("/api/devices");
   if (res.status === 401) {
-    window.location.href = "login.html";
+    window.location.href = "p-f838d1.html";
     return;
   }
   const devices = await res.json();
@@ -376,7 +376,7 @@ deviceForm.addEventListener("submit", async (e) => {
 document.getElementById("logoutBtn").addEventListener("click", async (e) => {
   e.preventDefault();
   await fetch("/api/logout", { method: "POST" });
-  window.location.href = "login.html";
+  window.location.href = "p-f838d1.html";
 });
 
 // Devices check in on their own every 30s, so the table can go stale

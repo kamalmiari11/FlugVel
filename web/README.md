@@ -9,16 +9,19 @@ backed by a Cloudflare D1 (SQLite) database.
 
 ```
 public/
-  index.html      Landing page
-  manual.html     User manual / setup guide
-  login.html      Password login for the device monitor
-  dashboard.html  Protected page listing all FlugVel devices
-  styles.css      Shared styling for all pages
+  index.html         Landing page
+  manual.html        User manual / setup guide
+  p-f838d1.html      Password login for the device monitor (deliberately
+                     un-guessable filename - never linked from the site's
+                     own nav; script.js's arrow-key sequence is the only way in)
+  m-223d0f.html      Protected page listing all FlugVel devices (same
+                     naming reasoning - only reachable after logging in)
+  styles.css         Shared styling for all pages
 
 functions/
   api/login.js         POST — checks the admin password, issues a JWT cookie
   api/logout.js        POST — clears the session cookie
-  api/me.js            GET  — "am I logged in?" check used by dashboard.html
+  api/me.js            GET  — "am I logged in?" check used by m-223d0f.html
   api/devices/index.js GET (list) / POST (create)
   api/devices/[id].js  PUT (update) / DELETE
   _lib/jwt.js          Minimal HS256 JWT sign/verify (Web Crypto, no deps)
@@ -31,7 +34,7 @@ wrangler.toml     Cloudflare project config (needs your D1 database_id filled in
 ## How auth works
 
 There's a single admin password (an `ADMIN_PASSWORD` secret, not stored in
-the database or in code). Logging in on `login.html` posts the password to
+the database or in code). Logging in on `p-f838d1.html` posts the password to
 `/api/login`; on success the server signs a JWT and sets it as an
 `HttpOnly`, `Secure` cookie. Every `/api/devices*` request checks that
 cookie before touching the database. There's no per-user accounts — this

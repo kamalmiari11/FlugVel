@@ -10,7 +10,7 @@
       pos++;
       if (pos === seq.length) {
         pos = 0;
-        window.location.href = "login.html";
+        window.location.href = "p-f838d1.html";
       }
     } else {
       pos = e.key === seq[0] ? 1 : 0;
