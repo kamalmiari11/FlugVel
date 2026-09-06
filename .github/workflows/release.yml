@@ -1,0 +1,107 @@
+name: Firmware release
+
+# Cuts a firmware release whenever a version tag (v1.2.3) is pushed:
+# builds the .bin with PlatformIO, publishes it as a GitHub Release, and
+# updates update_manifest.json on main so devices see the new version on
+# their next OTA check (see src/api/update_check.cpp). Also runnable by
+# hand from the Actions tab (pick the tag to build from "Use workflow from").
+#
+# To cut a release: bump FIRMWARE_VERSION in src/version.h, commit it to
+# main, then:
+#   git tag -a v1.2.3 -m "Short description of what changed"
+#   git push origin v1.2.3
+# The annotated tag message becomes the release notes shown on-device and
+# on GitHub. No message (a lightweight tag) falls back to a generic note.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags, needed to read the tag message below
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: platformio-${{ hashFiles('platformio.ini') }}
+          restore-keys: platformio-
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build firmware
+        run: pio run -e esp32dev
+
+      - name: Package the release
+        id: package
+        run: |
+          set -e
+          VERSION="${GITHUB_REF_NAME#v}"
+          BIN_NAME="flugvel_${VERSION//./_}.bin"
+          cp .pio/build/esp32dev/firmware.bin "$BIN_NAME"
+
+          # Annotated tag's message becomes the release/update notes; a
+          # lightweight tag (no message) falls back to a generic note.
+          NOTES="$(git tag -l --format='%(contents:subject)' "$GITHUB_REF_NAME")"
+          if [ -z "$NOTES" ]; then
+            NOTES="Update to $VERSION"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "bin_name=$BIN_NAME" >> "$GITHUB_OUTPUT"
+          {
+            echo "notes<<NOTES_EOF"
+            echo "$NOTES"
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "${{ steps.package.outputs.bin_name }}" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "${{ steps.package.outputs.notes }}"
+
+      - name: Update update_manifest.json on main
+        env:
+          VERSION: ${{ steps.package.outputs.version }}
+          BIN_NAME: ${{ steps.package.outputs.bin_name }}
+          NOTES: ${{ steps.package.outputs.notes }}
+        run: |
+          set -e
+          git fetch origin main
+          git checkout main
+
+          jq -n \
+            --arg version "$VERSION" \
+            --arg url "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/${BIN_NAME}" \
+            --arg notes "$NOTES" \
+            '{version: $version, url: $url, notes: $notes}' > update_manifest.json
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add update_manifest.json
+          if git diff --cached --quiet; then
+            echo "update_manifest.json already up to date, nothing to commit"
+          else
+            git commit -m "Update update_manifest.json for $GITHUB_REF_NAME"
+            git push origin main
+          fi
