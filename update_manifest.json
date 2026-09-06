@@ -1,5 +1,5 @@
 {
-  "version": "1.0.5",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.5/flugvel_1_0_5.bin",
-  "notes": "Add automatic device check-in reporting"
+  "version": "1.0.6",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.6/flugvel_1_0_6.bin",
+  "notes": "Add remote-triggered firmware updates per device"
 }
