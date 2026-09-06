@@ -6,6 +6,12 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
+// Defined in main.cpp - wraps CaptivePortal::factoryReset() (it owns the
+// EEPROM/NVS layout). Same function the physical 15s button-hold and the
+// on-device Settings > Factory reset menu item already call; this just
+// gives the dashboard a third way to trigger it. Does not return.
+extern void factoryReset();
+
 // Same shared-secret pattern as UPDATE_MANIFEST_URL in update_check.cpp -
 // hardcoded rather than user-configurable, since this project has exactly
 // one dashboard. Must match the DEVICE_API_KEY Cloudflare Pages env var
@@ -67,5 +73,17 @@ void sendCheckin(const String& location) {
                 Serial.println("[Checkin] Remote-triggered update failed - staying on current firmware");
             }
         }
+    }
+
+    // Remote factory reset - deliberately the only remote command that
+    // exists (see web/functions/api/devices/[id]/command.js). Wipes WiFi
+    // credentials along with everything else and reboots into setup mode,
+    // so this device won't check in again until someone is physically
+    // there to reconnect it - that's the intended, understood trade-off
+    // for a unit stuck in a bad state that a restart won't fix.
+    String cmd = resp["command"].as<String>();
+    if (cmd == "factory_reset") {
+        Serial.println("[Checkin] Remote factory reset requested - wiping and rebooting into setup mode");
+        factoryReset(); // does not return
     }
 }

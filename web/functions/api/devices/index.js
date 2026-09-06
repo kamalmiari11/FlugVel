@@ -21,7 +21,7 @@ export async function onRequestGet(context) {
   const { results } = await context.env.DB.prepare(
     `SELECT
        id, name, owner, location, notes, firmware_version, signal_dbm,
-       last_seen_at, updated_at, pending_update_version,
+       last_seen_at, updated_at, pending_update_version, pending_command,
        CASE
          WHEN last_seen_at IS NULL THEN status
          WHEN (julianday('now') - julianday(last_seen_at)) * 86400.0 <= ${STALE_AFTER_SECONDS} THEN 'online'

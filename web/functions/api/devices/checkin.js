@@ -67,22 +67,27 @@ export async function onRequestPost(context) {
        updated_at = excluded.updated_at`
   ).bind(deviceId, defaultName, location, firmwareVersion, signalDbm).run();
 
-  // Hand over a queued remote update, if there is one (see
-  // POST /api/devices/:id/push-update), and clear it in the same
-  // check-in so it's only ever delivered once. If the device never gets
-  // this response (dropped connection etc.) the update is simply lost,
-  // not retried — an admin who pushed it can just push it again.
+  // Hand over a queued remote update and/or command, if either is
+  // pending (see POST /api/devices/:id/push-update and
+  // POST /api/devices/:id/command), and clear whichever was delivered in
+  // this same check-in so each is only ever sent once. If the device
+  // never gets this response (dropped connection etc.) it's simply lost,
+  // not retried — an admin who queued it can just queue it again.
   const pending = await context.env.DB.prepare(
-    "SELECT pending_update_version AS version, pending_update_url AS url FROM devices WHERE id = ?"
+    `SELECT pending_update_version AS version, pending_update_url AS url, pending_command AS command
+     FROM devices WHERE id = ?`
   ).bind(deviceId).first();
 
   let update = null;
-  if (pending && pending.url) {
-    update = { version: pending.version, url: pending.url };
+  let command = null;
+  if (pending && pending.url) update = { version: pending.version, url: pending.url };
+  if (pending && pending.command) command = pending.command;
+
+  if (update || command) {
     await context.env.DB.prepare(
-      "UPDATE devices SET pending_update_version = NULL, pending_update_url = NULL WHERE id = ?"
+      "UPDATE devices SET pending_update_version = NULL, pending_update_url = NULL, pending_command = NULL WHERE id = ?"
     ).bind(deviceId).run();
   }
 
-  return json({ ok: true, stale_after_seconds: STALE_AFTER_SECONDS, update });
+  return json({ ok: true, stale_after_seconds: STALE_AFTER_SECONDS, update, command });
 }

@@ -193,7 +193,7 @@ function renderDevices(devices) {
     const lastSeenTitle = lastSeenIso ? formatDate(lastSeenIso) : formatDate(d.updated_at);
     const lastSeenText = lastSeenIso ? formatRelative(lastSeenIso) : formatDate(d.updated_at);
     const firmwareCell = d.firmware_version
-      ? `${escapeHtml(d.firmware_version)}${Number.isFinite(d.signal_dbm) ? `<br><span class="dim-sub">${d.signal_dbm} dBm</span>` : ""}${d.pending_update_version ? `<br><span class="dim-sub">→ v${escapeHtml(d.pending_update_version)} queued</span>` : ""}`
+      ? `${escapeHtml(d.firmware_version)}${Number.isFinite(d.signal_dbm) ? `<br><span class="dim-sub">${d.signal_dbm} dBm</span>` : ""}${d.pending_update_version ? `<br><span class="dim-sub">→ v${escapeHtml(d.pending_update_version)} queued</span>` : ""}${d.pending_command === "factory_reset" ? `<br><span class="dim-sub">factory reset queued</span>` : ""}`
       : "—";
 
     tr.innerHTML = `
@@ -209,6 +209,9 @@ function renderDevices(devices) {
         ${d.pending_update_version
           ? `<button data-action="cancel-update" data-id="${d.id}">Cancel update</button>`
           : `<button data-action="push-update" data-id="${d.id}">Push update</button>`}
+        ${d.pending_command === "factory_reset"
+          ? `<button data-action="cancel-reset" data-id="${d.id}">Cancel reset</button>`
+          : `<button data-action="factory-reset" data-id="${d.id}">Factory reset</button>`}
         <button data-action="delete" data-id="${d.id}">Delete</button>
       </td>
     `;
@@ -284,6 +287,22 @@ deviceRows.addEventListener("click", async (e) => {
     const res = await fetch(`/api/devices/${device.id}/push-update`, { method: "DELETE" });
     if (res.ok) loadDevices();
     else alert("Couldn't cancel that update.");
+  } else if (btn.dataset.action === "factory-reset") {
+    const confirmed = confirm(
+      `Factory reset "${device.name}"?\n\nThis wipes ALL its settings, including WiFi — it will go offline and stay offline until someone sets it up again in person. This can't be undone or cancelled once it's delivered.`
+    );
+    if (!confirmed) return;
+    const res = await fetch(`/api/devices/${device.id}/command`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ command: "factory_reset" }),
+    });
+    if (res.ok) loadDevices();
+    else alert("Couldn't queue that reset.");
+  } else if (btn.dataset.action === "cancel-reset") {
+    const res = await fetch(`/api/devices/${device.id}/command`, { method: "DELETE" });
+    if (res.ok) loadDevices();
+    else alert("Couldn't cancel that reset.");
   } else if (btn.dataset.action === "delete") {
     if (!confirm(`Remove "${device.name}" from the monitor? This can't be undone.`)) return;
     const res = await fetch(`/api/devices/${device.id}`, { method: "DELETE" });
@@ -360,12 +379,28 @@ document.getElementById("logoutBtn").addEventListener("click", async (e) => {
   window.location.href = "login.html";
 });
 
+// Devices check in on their own every 30s, so the table can go stale
+// under your eyes (status flips to offline, "last seen" ticks up) without
+// a manual refresh. Re-fetching every 10s keeps it live without hammering
+// D1 - this is a single admin's dashboard, nowhere near read-quota
+// territory. Skipped while the tab isn't visible so it doesn't fetch into
+// the void when you've clicked away.
+const REFRESH_INTERVAL_MS = 10000;
+
+function startAutoRefresh() {
+  setInterval(() => {
+    if (document.hidden) return;
+    loadDevices();
+  }, REFRESH_INTERVAL_MS);
+}
+
 (async function init() {
   const ok = await checkAuth();
   if (!ok) return;
   await loadDevices();
   loadingState.style.display = "none";
   app.style.display = "block";
+  startAutoRefresh();
 })();
 </script>
 
