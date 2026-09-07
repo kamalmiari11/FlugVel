@@ -139,11 +139,12 @@ label, .n, .caption, .step-num, th { font-family: var(--mono); }
 }
 .hero .cta-row { justify-content: center; }
 
-/* Side-by-side layout: copy on the left, the device clip on the right -
-   the video has no card/border/shadow of its own (see .hero-video below).
-   It's masked with a soft radial fade so its rectangular edges dissolve
-   into the page instead of reading as a boxed-in screenshot - what's left
-   on screen is just the device and the shadow baked into the clip itself. */
+/* Side-by-side layout: copy on the left, the device clip on the right.
+   The clip's own background is pre-composited to the page's exact --bg
+   (see the site's build notes / device-hero.mp4 provenance) with the
+   device's real render vignette removed via a background-difference
+   matte, so no card, border, mask or shadow is needed here at all - the
+   video just IS the device floating with its own baked-in shadow. */
 .hero-split {
   max-width: 1120px;
   display: flex;
@@ -161,9 +162,6 @@ label, .n, .caption, .step-num, th { font-family: var(--mono); }
   width: 100%;
   max-width: 460px;
   margin: 0;
-  background: transparent;
-  -webkit-mask-image: radial-gradient(ellipse 62% 58% at 50% 48%, #000 55%, transparent 92%);
-  mask-image: radial-gradient(ellipse 62% 58% at 50% 48%, #000 55%, transparent 92%);
 }
 @media (max-width: 900px) {
   .hero { padding: 56px 0 40px; }
