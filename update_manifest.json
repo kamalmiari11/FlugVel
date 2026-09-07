@@ -1,5 +1,5 @@
 {
-  "version": "1.0.9",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.9/flugvel_1_0_9.bin",
-  "notes": "Removed the post-setup IP screen, update tab now shows what the last release added, setup address fits on one line, renamed Configure on phone, and tidied the PIN entry page"
+  "version": "1.0.10",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.10/flugvel_1_0_10.bin",
+  "notes": "Added a Notes screen backed by a Notion page - to-dos, bullets and headings, configured on the phone page"
 }
