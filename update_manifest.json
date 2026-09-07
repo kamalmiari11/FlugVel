@@ -1,5 +1,5 @@
 {
-  "version": "1.0.7",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.7/flugvel_1_0_7.bin",
-  "notes": "Devices can now be factory reset remotely from the dashboard, wiping WiFi and settings and rebooting into setup mode - same as the on-device Settings > Factory reset option."
+  "version": "1.0.8",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.8/flugvel_1_0_8.bin",
+  "notes": "Themed update prompt, non-blocking plane flyover, and a proper setup address instead of a raw IP"
 }
