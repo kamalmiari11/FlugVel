@@ -40,11 +40,6 @@ public:
     // Animation control
     void triggerAnimation();
 
-    // So animatePlane()'s blocking frame loop can keep the clock/title bar
-    // ticking during the (multi-second) flyover instead of freezing it
-    // until the animation finishes - see animatePlane().
-    void setHeader(Header* header) { _header = header; }
-
     // Optional overrides from the captive portal's manual setup form - both
     // no-ops (keep the built-in default) if passed an empty/invalid value,
     // so "leave the field blank" naturally means "use the default".
@@ -69,7 +64,6 @@ private:
     String _quoteText;        // "quote of the day" - empty until the first successful fetch
     String _quoteAuthor;
 
-    Header* _header = nullptr; // not owned - used to keep the header alive mid-animation
     int _pagerIndex = 0;
     int _pagerCount = 0;
 
@@ -79,7 +73,8 @@ private:
 
     void drawFlightInfo();
     void updateKMLPosition();
-    void animatePlane();
+    void startPlaneAnimation(); // non-blocking: computes the flight path once and arms the animation
+    void stepPlaneAnimation();  // advances at most one frame per call - driven by draw(), never blocks
     void drawBorder();
     void clearContentArea(); // clears only the interior of the border box - never the header, never the border itself
     void drawQuote();        // draws _quoteText/_quoteAuthor in the space below the border box
@@ -116,4 +111,22 @@ private:
     // 0 = display's top edge faces true North. Defaults to 270 (west);
     // overridable via setDisplayBearing() from the captive portal form.
     float _displayBearing;
+
+    // Non-blocking flyover animation state (see startPlaneAnimation()/
+    // stepPlaneAnimation()). Used to replace a delay()-based loop that
+    // froze input, background network work, and the header's clock for
+    // the whole multi-second flyover - now each loop() iteration gets a
+    // normal, fast draw() call and the animation just advances a frame
+    // when enough time has passed.
+    bool _animInProgress = false;
+    int _animFrame = 0;
+    int _animFrames = 0;
+    float _animVx = 0, _animVy = 0;
+    float _animStep = 0;
+    float _animPx = 0, _animPy = 0;
+    int _animLastPx = -10000, _animLastPy = -10000;
+    int _animBoxX = 0, _animBoxY = 0, _animBoxW = 0, _animBoxH = 0;
+    const uint8_t* _animBmp = nullptr;
+    unsigned long _animLastFrameMs = 0;
+    static const int PLANE_ANIM_FRAME_DELAY_MS = 30; // min ms between frames - was the delay() amount
 };

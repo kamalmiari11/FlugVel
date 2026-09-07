@@ -292,6 +292,19 @@ void PlaneTrackerScreen::draw() {
     // clearContentArea() and init(). Everything below only clears/redraws
     // inside the border.
 
+    // A flyover in progress takes priority over everything else below -
+    // advance it by at most one frame (only if enough time has passed)
+    // and return immediately either way. This used to be a single
+    // blocking delay()-driven loop inside animatePlane() that froze
+    // encoder/button input, background network work, and the header's own
+    // clock for the whole multi-second flyover. Now draw() is called
+    // normally on every loop() iteration (see stepPlaneAnimation()), so
+    // nothing else in loop() is held up while a plane crosses the screen.
+    if (_animInProgress) {
+        stepPlaneAnimation();
+        return;
+    }
+
     if (_hasFlight) {
         // Flight mode: Only redraw when flight callsign changes
         if (_lastDrawnFlight != _currentFlight.callsign) {
@@ -299,8 +312,10 @@ void PlaneTrackerScreen::draw() {
 
             clearContentArea();  // wipe whatever was showing before (old info / bounce text)
             if (ConfigStore::get().planeFlyover) {
-                animatePlane();      // flyover: enters from outside the box, exits the other side, then is gone
-                clearContentArea();  // remove the plane before the info text appears
+                startPlaneAnimation(); // non-blocking - arms the flyover; stepPlaneAnimation()
+                                        // (called above on future draw() calls) finishes it and
+                                        // calls drawFlightInfo() itself once the plane is off-box
+                return;
             }
             drawFlightInfo();
         }
@@ -479,7 +494,7 @@ void PlaneTrackerScreen::updateKMLPosition() {
 
 // Draws a box around exactly the area the bounce text moves within (see the
 // KML_MARGIN_* constants) - called exactly once per visit to this screen,
-// from init(). Never called again after that (see draw()/animatePlane(),
+// from init(). Never called again after that (see draw()/stepPlaneAnimation(),
 // which only ever clear strictly inside it via clearContentArea()).
 void PlaneTrackerScreen::drawBorder() {
     tft->drawRect(_borderX, _borderY, _borderW, _borderH, ThemeManager::current().fg);
@@ -501,37 +516,43 @@ float PlaneTrackerScreen::getRelativeHeading(float h) const {
 // it never stops mid-box. Only the small area around the bitmap is
 // cleared/redrawn each frame (not the whole box), so it's smooth and never
 // touches the header or the border line.
-void PlaneTrackerScreen::animatePlane() {
+//
+// Non-blocking: startPlaneAnimation() below computes the whole path once
+// and arms the animation; stepPlaneAnimation() then advances exactly one
+// frame per draw() call (throttled to PLANE_ANIM_FRAME_DELAY_MS via
+// millis(), never delay()), so loop() keeps handling input and everything
+// else at its normal rate while the plane crosses the screen.
+void PlaneTrackerScreen::startPlaneAnimation() {
     float rel = getRelativeHeading(_currentFlight.heading);
-    const uint8_t* bmp = getBitmap(headingToDir(rel));
+    _animBmp = getBitmap(headingToDir(rel));
 
     float angle = rel * (PI / 180.0f);
-    float vx = sin(angle);
-    float vy = -cos(angle);
+    _animVx = sin(angle);
+    _animVy = -cos(angle);
 
     // Animate within the border box's interior, not the whole screen -
     // this keeps the flight path (and its start/end "off-screen" points)
     // consistent with the box that's actually drawn on screen.
-    int boxX = _borderX + 2;
-    int boxY = _borderY + 2;
-    int boxW = _borderW - 4;
-    int boxH = _borderH - 4;
-    int cx = boxX + boxW / 2;
-    int cy = boxY + boxH / 2;
-    int halfW = boxW / 2;
-    int halfH = boxH / 2;
+    _animBoxX = _borderX + 2;
+    _animBoxY = _borderY + 2;
+    _animBoxW = _borderW - 4;
+    _animBoxH = _borderH - 4;
+    int cx = _animBoxX + _animBoxW / 2;
+    int cy = _animBoxY + _animBoxH / 2;
+    int halfW = _animBoxW / 2;
+    int halfH = _animBoxH / 2;
 
     // Distance from center to just outside whichever edge of the box the
     // plane is approaching from.
     float travel = 0;
-    if (fabs(vx) > 0.0001f) travel = max(travel, (float)halfW / fabs(vx));
-    if (fabs(vy) > 0.0001f) travel = max(travel, (float)halfH / fabs(vy));
+    if (fabs(_animVx) > 0.0001f) travel = max(travel, (float)halfW / fabs(_animVx));
+    if (fabs(_animVy) > 0.0001f) travel = max(travel, (float)halfH / fabs(_animVy));
     travel += PLANE_W; // clear margin so the bitmap starts/ends fully outside the box
 
-    float startX = cx - vx * travel;
-    float startY = cy - vy * travel;
-    float endX   = cx + vx * travel;
-    float endY   = cy + vy * travel;
+    float startX = cx - _animVx * travel;
+    float startY = cy - _animVy * travel;
+    float endX   = cx + _animVx * travel;
+    float endY   = cy + _animVy * travel;
 
     float dist = sqrt((endX - startX) * (endX - startX) + (endY - startY) * (endY - startY));
 
@@ -543,57 +564,68 @@ void PlaneTrackerScreen::animatePlane() {
     // the total duration varies instead; clamped so a very short path still
     // animates for a beat and a long one doesn't drag.
     const float PX_PER_FRAME = 4.5f;
-    int frames = constrain((int)(dist / PX_PER_FRAME), 28, 130);
-    const float step = dist / frames;
+    _animFrames = constrain((int)(dist / PX_PER_FRAME), 28, 130);
+    _animStep = dist / _animFrames;
+
+    _animFrame = 0;
+    _animPx = startX;
+    _animPy = startY;
+    _animLastPx = -10000;
+    _animLastPy = -10000;
+    _animLastFrameMs = 0; // 0 means "draw the first frame right away" - see stepPlaneAnimation()
+    _animInProgress = true;
+}
+
+// Advances the flyover by at most one frame, only once PLANE_ANIM_FRAME_
+// DELAY_MS has actually elapsed since the last one - if called again
+// before then it does nothing and returns, same as a screen with no
+// animation in progress would. Called from draw() on every loop()
+// iteration while _animInProgress is true.
+void PlaneTrackerScreen::stepPlaneAnimation() {
+    unsigned long now = millis();
+    if (_animLastFrameMs != 0 && now - _animLastFrameMs < (unsigned long)PLANE_ANIM_FRAME_DELAY_MS) {
+        return; // not time for the next frame yet - leave the current one on screen
+    }
+    _animLastFrameMs = now;
 
     const Theme &theme = ThemeManager::current();
-    float px = startX, py = startY;
-    int lastPx = -10000, lastPy = -10000;
-    const int frameDelay = 30; // ms - slower, more visible flyover (was 12ms)
 
     // The plane deliberately starts/ends OUTSIDE the box (that's the point -
     // it flies in from off-box and exits the other side). That means its
     // erase/draw rects can overlap the border line, or even go past it
     // entirely. Clip all drawing to strictly inside the box interior so the
     // border itself is never touched, no matter where the bitmap is.
-    tft->setViewport(boxX, boxY, boxW, boxH);
+    tft->setViewport(_animBoxX, _animBoxY, _animBoxW, _animBoxH);
 
-    for (int i = 0; i < frames; i++) {
-        px += vx * step;
-        py += vy * step;
+    _animPx += _animVx * _animStep;
+    _animPy += _animVy * _animStep;
 
-        // Erase only the small area the bitmap previously occupied, not
-        // the whole box - this is what makes the motion smooth instead of
-        // a full-screen flash every frame. Coordinates below are still in
-        // absolute screen space; setViewport() clips them for us.
-        if (lastPx > -10000) {
-            tft->fillRect(lastPx - PLANE_W / 2 - 1, lastPy - PLANE_H / 2 - 1, PLANE_W + 2, PLANE_H + 2, theme.bg);
-        }
-
-        tft->drawBitmap((int)px - PLANE_W / 2, (int)py - PLANE_H / 2, bmp, PLANE_W, PLANE_H, theme.fg);
-
-        lastPx = (int)px;
-        lastPy = (int)py;
-
-        // This loop blocks for frames * frameDelay (a couple seconds) -
-        // without this, the header's clock would visibly freeze for the
-        // whole flyover, since ScreenManager only redraws the header AFTER
-        // this whole function returns. The viewport only clips drawing to
-        // the box, so it has to be lifted for the header (which lives
-        // above the box, in the top 20px strip) and restored after.
-        if (_header) {
-            tft->resetViewport();
-            _header->draw(getName(), _pagerIndex, _pagerCount);
-            tft->setViewport(boxX, boxY, boxW, boxH);
-        }
-
-        delay(frameDelay);
+    // Erase only the small area the bitmap previously occupied, not the
+    // whole box - this is what makes the motion smooth instead of a
+    // full-screen flash every frame.
+    if (_animLastPx > -10000) {
+        tft->fillRect(_animLastPx - PLANE_W / 2 - 1, _animLastPy - PLANE_H / 2 - 1, PLANE_W + 2, PLANE_H + 2, theme.bg);
     }
 
-    // Remove the plane at its final (off-box) position so nothing lingers.
-    tft->fillRect(lastPx - PLANE_W / 2 - 1, lastPy - PLANE_H / 2 - 1, PLANE_W + 2, PLANE_H + 2, theme.bg);
+    tft->drawBitmap((int)_animPx - PLANE_W / 2, (int)_animPy - PLANE_H / 2, _animBmp, PLANE_W, PLANE_H, theme.fg);
 
-    // Restore full-screen drawing for everything else (clearContentArea(),
-    // drawFlightInfo(), etc. all assume the whole panel is drawable again).
+    _animLastPx = (int)_animPx;
+    _animLastPy = (int)_animPy;
+
     tft->resetViewport();
+
+    _animFrame++;
+    if (_animFrame >= _animFrames) {
+        // Flyover done - remove the plane at its final (off-box) position
+        // so nothing lingers, then hand off to the normal flight-info
+        // draw, exactly like the old blocking version did right after its
+        // loop exited.
+        tft->setViewport(_animBoxX, _animBoxY, _animBoxW, _animBoxH);
+        tft->fillRect(_animLastPx - PLANE_W / 2 - 1, _animLastPy - PLANE_H / 2 - 1, PLANE_W + 2, PLANE_H + 2, theme.bg);
+        tft->resetViewport();
+
+        _animInProgress = false;
+        clearContentArea();  // remove the plane's box before the info text appears
+        drawFlightInfo();
+    }
 }

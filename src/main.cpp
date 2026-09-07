@@ -630,11 +630,6 @@ void setup() {
     planeScreen->setBounceText(portal.getBounceText());
     planeScreen->setDisplayBearing(portal.getFacingBearingDeg());
 
-    // animatePlane()'s blocking frame loop needs its own direct pointer to
-    // the header to keep the clock ticking mid-animation - screenManager's
-    // copy (set below) is a separate pointer and doesn't reach the screen.
-    planeScreen->setHeader(&header);
-
     // The Theme submenu recolours the whole panel live as you preview - let
     // it repaint the shared header/legend strips too, not just its own body.
     settingsScreen->setChrome(&header, &actionLegend);
