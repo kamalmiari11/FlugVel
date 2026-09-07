@@ -29,6 +29,7 @@ enum class ScreenId : uint8_t {
     Games    = 2,
     Focus    = 3,
     Calendar = 4,
+    Notes    = 5,
 
     Settings = 255,
 };

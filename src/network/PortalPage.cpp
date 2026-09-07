@@ -16,6 +16,7 @@
 #include <WiFi.h>
 #include "../config/Config.h"
 #include "../config/CalendarFeeds.h"
+#include "../config/NotesSource.h"
 #include "../screens/ScreenRegistry.h"
 #include "../screens/GamesScreen.h"
 #include "../screens/ScreenManager.h"
@@ -465,6 +466,23 @@ button.act.ghost{background:transparent;color:var(--fg);border-color:var(--rule)
                 optSwitch(p, "call",  "All-day events",   "include events with no start time", c.calAllDay);
                 optSwitch(p, "cmrg",  "Merge duplicates", "one row when an event is in several calendars", c.calMerge);
                 optSwitch(p, "cpast", "Hide past today",  "drops today's events once they have finished", c.calHidePast);
+                break;
+            }
+            case ScreenId::Notes: {
+                p += "<p class=\"hint\">Free at notion.so/my-integrations: create an "
+                     "internal integration, copy its secret, then share your notes page "
+                     "with it from the page&#39;s &middot;&middot;&middot; menu &rsaquo; "
+                     "Connections. Paste both below.</p>";
+                optText(p, "ntok", "Integration token", "starts with secret_ or ntn_",
+                        NotesSource::token(), 120, "secret_...");
+                optText(p, "npage", "Page", "the page's URL, or just its id",
+                        NotesSource::pageId(), 200, "https://www.notion.so/...");
+                static const char *const kNMax[] = { "5 items", "8 items", "10 items", "15 items" };
+                static const int kNMaxV[] = { 5, 8, 10, 15 };
+                int nmi = 1;
+                for (int i = 0; i < 4; i++) if (kNMaxV[i] == NotesSource::maxItems()) { nmi = i; break; }
+                optSelect(p, "nmax", "Items shown", "how many rows the screen keeps", kNMax, kNMaxV, 4, nmi);
+                optSwitch(p, "nchk", "Show checked items", "keep finished to-dos instead of dropping them", NotesSource::showChecked());
                 break;
             }
             default:

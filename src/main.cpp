@@ -21,6 +21,7 @@
 #include "screens/ScreenRegistry.h"
 #include "config/Config.h"
 #include "config/CalendarFeeds.h"
+#include "config/NotesSource.h"
 #include "screens/PlaneTrackerScreen.h"
 #include "screens/DashboardScreen.h"
 #include "screens/SettingsScreen.h"
@@ -567,6 +568,7 @@ void setup() {
     // Feed list for the Calendar screen. Takes the old single-URL setting
     // as a seed, so a device that already had one calendar keeps it.
     CalendarFeeds::begin(portal.getCalendarUrl());
+    NotesSource::begin();
 
     if (hasWiFi) {
         portal.loadLocationEEPROM();

@@ -2,6 +2,7 @@
 #include "../config/Config.h"
 #include "../screens/ScreenRegistry.h"
 #include "../config/CalendarFeeds.h"
+#include "../config/NotesSource.h"
 #include "../screens/GamesScreen.h"
 #include "../ui/Theme.h"
 #include <nvs_flash.h>
@@ -771,6 +772,19 @@ void CaptivePortal::applyConfigPost()
             CalendarFeeds::add(label, url);
         }
         CalendarFeeds::save();
+    }
+
+    // Notes source - a single Notion page, unlike the calendar's several
+    // feeds, so this is just an overwrite rather than a rebuild. A cleared
+    // token or page genuinely disables the screen rather than leaving a
+    // stale value that quietly keeps fetching.
+    {
+        String tok  = server.arg("ntok");  tok.trim();
+        String page = server.arg("npage"); page.trim();
+        int notesMax = num("nmax", 5, 15, NotesSource::maxItems());
+        bool notesChecked = flag("nchk", NotesSource::showChecked() ? 1 : 0) != 0;
+        NotesSource::set(tok, page, notesMax, notesChecked);
+        NotesSource::save();
     }
 
     ConfigStore::save();
