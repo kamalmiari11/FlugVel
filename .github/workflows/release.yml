@@ -57,8 +57,19 @@ jobs:
           BIN_NAME="flugvel_${VERSION//./_}.bin"
           cp .pio/build/esp32dev/firmware.bin "$BIN_NAME"
 
-          # Annotated tag's message becomes the release/update notes; a
-          # lightweight tag (no message) falls back to a generic note.
+          # actions/checkout leaves a local tag ref that points at the
+          # commit, not the real annotated tag object - reading it back
+          # then silently returns the COMMIT's message instead of the tag
+          # message we actually wrote (bit us for v1.0.7: the notes ended
+          # up being an unrelated commit's summary). Force-fetching the
+          # real tag object from the remote first fixes that.
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+
+          # Annotated tag's message becomes the release/update notes - this
+          # is what shows up in the on-device update prompt, so keep tag
+          # messages focused on what changed for the device itself, not
+          # website-only changes that happened to land in the same commit.
+          # A lightweight tag (no message) falls back to a generic note.
           NOTES="$(git tag -l --format='%(contents:subject)' "$GITHUB_REF_NAME")"
           if [ -z "$NOTES" ]; then
             NOTES="Update to $VERSION"
