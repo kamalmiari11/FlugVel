@@ -138,6 +138,15 @@ label, .n, .caption, .step-num, th { font-family: var(--mono); }
   text-align: center;
 }
 .hero .cta-row { justify-content: center; }
+.hero-video {
+  display: block;
+  width: 100%;
+  max-width: 380px;
+  margin: 40px auto 0;
+  border-radius: 14px;
+  box-shadow: var(--shadow-md);
+  background: var(--bg-alt); /* shows briefly before the first frame paints */
+}
 @media (max-width: 900px) {
   .hero { padding: 56px 0 40px; }
 }
