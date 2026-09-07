@@ -138,17 +138,40 @@ label, .n, .caption, .step-num, th { font-family: var(--mono); }
   text-align: center;
 }
 .hero .cta-row { justify-content: center; }
+
+/* Side-by-side layout: copy on the left, the device clip on the right -
+   the video has no card/border/shadow of its own (see .hero-video below).
+   It's masked with a soft radial fade so its rectangular edges dissolve
+   into the page instead of reading as a boxed-in screenshot - what's left
+   on screen is just the device and the shadow baked into the clip itself. */
+.hero-split {
+  max-width: 1120px;
+  display: flex;
+  align-items: center;
+  gap: 64px;
+  text-align: left;
+}
+.hero-split .hero-copy { flex: 1 1 0; max-width: 480px; }
+.hero-split .cta-row { justify-content: flex-start; }
+.hero-split .eyebrow { margin-left: 0; }
+.hero-split .sub { margin: 0 0 32px; }
+.hero-split .hero-media { flex: 1 1 0; display: flex; justify-content: center; }
 .hero-video {
   display: block;
   width: 100%;
-  max-width: 380px;
-  margin: 40px auto 0;
-  border-radius: 14px;
-  box-shadow: var(--shadow-md);
-  background: var(--bg-alt); /* shows briefly before the first frame paints */
+  max-width: 460px;
+  margin: 0;
+  background: transparent;
+  -webkit-mask-image: radial-gradient(ellipse 62% 58% at 50% 48%, #000 55%, transparent 92%);
+  mask-image: radial-gradient(ellipse 62% 58% at 50% 48%, #000 55%, transparent 92%);
 }
 @media (max-width: 900px) {
   .hero { padding: 56px 0 40px; }
+  .hero-split { flex-direction: column; text-align: center; gap: 32px; }
+  .hero-split .hero-copy { max-width: 640px; }
+  .hero-split .cta-row { justify-content: center; }
+  .hero-split .eyebrow { margin-left: auto; }
+  .hero-split .sub { margin: 0 auto 32px; }
 }
 @media (max-width: 480px) {
   h1 { font-size: 32px; }
