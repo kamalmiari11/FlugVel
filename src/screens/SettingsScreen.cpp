@@ -220,7 +220,7 @@ void SettingsScreen::drawMainMenu(bool fullRepaint) {
     static const char* options[OPTION_COUNT] = {
         "Device info",
         "Theme",
-        "Customise on phone",
+        "Configure on phone",
         "Software update",
         "Restart device",
         "Factory reset",
@@ -533,33 +533,56 @@ void SettingsScreen::drawUpdateSettings(bool fullRepaint) {
         tft->setTextColor(theme.accent2);
         tft->setCursor(20, y);
         tft->println("Up to date.");
+        y += 16;
+
+        // Nothing new to install, but the notes for the version that's
+        // already running are exactly what the *last* update added - the
+        // manifest always describes the newest published release, and
+        // that's what this device is on. Showing that instead of leaving
+        // the page blank means "what changed" is answered even when
+        // there's nothing to do about it right now.
+        if (_updateInfo.notes.length() > 0) {
+            tft->setTextColor(theme.fg);
+            tft->setCursor(20, y);
+            tft->print("What v");
+            tft->print(FIRMWARE_VERSION);
+            tft->println(" added:");
+            y += 16;
+            drawWrappedNotes(_updateInfo.notes, y);
+        }
     } else {
         tft->setTextColor(theme.accent);
         tft->setCursor(20, y);
         tft->print("Available: v");
         tft->println(_updateInfo.version);
         y += 16;
+        drawWrappedNotes(_updateInfo.notes, y);
+    }
+}
 
-        // Notes can run long - wrap crudely at a fixed character count
-        // rather than pulling in a text-wrapping library for a few lines.
-        tft->setTextColor(theme.fgDim);
-        String notes = _updateInfo.notes;
-        const int maxCharsPerLine = 34;
-        while (notes.length() > 0 && y < 195) {
-            String line;
-            if ((int)notes.length() <= maxCharsPerLine) {
-                line = notes;
-                notes = "";
-            } else {
-                int breakAt = notes.lastIndexOf(' ', maxCharsPerLine);
-                if (breakAt <= 0) breakAt = maxCharsPerLine;
-                line = notes.substring(0, breakAt);
-                notes = notes.substring(breakAt + 1);
-            }
-            tft->setCursor(20, y);
-            tft->println(line);
-            y += 14;
+// Notes can run long - wrap crudely at a fixed character count rather
+// than pulling in a text-wrapping library for a few lines. Shared between
+// the "available" and "up to date" states above - same column, same
+// bottom clip, same dim color, just a different source string and start y.
+void SettingsScreen::drawWrappedNotes(const String &notesIn, int y) {
+    const Theme &theme = ThemeManager::current();
+    tft->setTextColor(theme.fgDim);
+    String notes = notesIn;
+    const int maxCharsPerLine = 34;
+    while (notes.length() > 0 && y < 195) {
+        String line;
+        if ((int)notes.length() <= maxCharsPerLine) {
+            line = notes;
+            notes = "";
+        } else {
+            int breakAt = notes.lastIndexOf(' ', maxCharsPerLine);
+            if (breakAt <= 0) breakAt = maxCharsPerLine;
+            line = notes.substring(0, breakAt);
+            notes = notes.substring(breakAt + 1);
         }
+        tft->setCursor(20, y);
+        tft->println(line);
+        y += 14;
     }
 }
 

@@ -130,7 +130,7 @@ p{color:#5a6048;font-size:13px;max-width:34ch;margin:10px auto}
         : "<p>Your settings are on the device.</p>";
 
     p += "<p>This page has closed. To change anything else, open "
-         "Settings &rsaquo; Customise on phone on the device again.</p>"
+         "Settings &rsaquo; Configure on phone on the device again.</p>"
          "</body></html>";
     return p;
 }
@@ -647,7 +647,7 @@ return o;}
 /* SettingsScreen::drawMainMenu - MENU_Y0 22, MENU_ROW_H 20, a 4px gap
    before the destructive pair, labels at top+4. Six entries since the
    flight interval, home screen, clock and units moved onto this page. */
-var op=[['Device info',''],['Theme','Mono'],['Customise on phone',''],
+var op=[['Device info',''],['Theme','Mono'],['Configure on phone',''],
 ['Software update','v1.0.3'],['Restart device',''],['Factory reset','']],o='';
 for(var x=10;x<310;x+=7)o+=R(x,104,3,1,t.rule);
 for(var i=0;i<6;i++){var y=22+i*20+(i>=4?4:0),s=i==0;o+=R(6,y,308,20,s?t.fg:t.bg);

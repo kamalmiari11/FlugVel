@@ -122,6 +122,7 @@ private:
     void closeConfigPortal();  // portal->stop(), safe to call when not running
 
     void drawUpdateSettings(bool fullRepaint);
+    void drawWrappedNotes(const String &notes, int y); // shared by the "available" and "up to date" states of drawUpdateSettings()
     void drawRestartConfirm(bool fullRepaint);
     void drawFactoryResetConfirm(bool fullRepaint);
 

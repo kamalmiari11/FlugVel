@@ -218,23 +218,30 @@ bool CaptivePortal::guardWithPin()
     }
 
     bool wrong = server.hasArg("pin");
+    // h1/label/input brought in line with the main config page's own scale
+    // (PortalPage.cpp: label 11px uppercase dim, input font:inherit, button
+    // font-size 14px) - this page used to freelance its own sizes (17px
+    // title next to a 22px/8px-spaced input with no label at all), which
+    // read as mismatched next to the rest of the site's forms.
     String page = R"rawliteral(<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"><meta charset="utf-8">
 <title>FlugVel</title><style>
 body{margin:0;padding:60px 16px;background:#c8d0b8;color:#23271d;
  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;text-align:center;}
-h1{font-size:17px;letter-spacing:2px;margin:0 0 6px;}
-p{color:#5a6048;font-size:13px;margin:0 0 22px;}
+h1{font-size:20px;letter-spacing:4px;margin:0 0 6px;font-weight:700;}
+p{color:#5a6048;font-size:13px;margin:0 0 26px;}
 form{max-width:280px;margin:0 auto;}
+label{display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#5a6048;margin:0 0 6px;text-align:left;}
 input{width:100%;padding:14px;border:1px solid #8a9078;background:#eef1e4;color:#23271d;
- font:inherit;font-size:22px;letter-spacing:8px;text-align:center;border-radius:0;}
-button{width:100%;padding:14px;margin-top:10px;border:1px solid #c05a1e;background:#c05a1e;
- color:#fff;font:inherit;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:0;}
+ font:inherit;font-size:20px;letter-spacing:6px;text-align:center;border-radius:0;}
+button{width:100%;padding:14px;margin-top:14px;border:1px solid #c05a1e;background:#c05a1e;
+ color:#fff;font:inherit;font-size:14px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:0;}
 .err{color:#9c3312;font-size:12px;margin-top:12px;}
 </style></head><body>
 <h1>[ FLUGVEL ]</h1><p>Enter the code shown on the device</p>
 <form method="POST" action="/">
-<input type="text" name="pin" inputmode="numeric" maxlength="4" autofocus>
+<label for="pin">Code</label>
+<input id="pin" type="text" name="pin" inputmode="numeric" maxlength="4" autofocus>
 <button type="submit">Unlock</button>)rawliteral";
 
     if (wrong) page += "<p class=\"err\">That code did not match.</p>";

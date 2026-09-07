@@ -728,7 +728,7 @@ void loop() {
     // ---- Handle the web server ----
     // Driven off the portal's own state rather than portalRunning, because
     // there are two things that can raise it now: first-run setup (which
-    // portalRunning tracks) and Settings > Customise on phone, which can
+    // portalRunning tracks) and Settings > Configure on phone, which can
     // start it long after setup is done.
     if (portal.isRunning()) {
         portal.handle();
@@ -843,19 +843,12 @@ void loop() {
         Serial.println("WiFi Connected!");
         Serial.println(WiFi.localIP());
 
-        tft.fillScreen(MY_BLACK);
+        // No visible "Connected to WiFi!" + IP screen here any more - it
+        // was on screen for a flat 2s no matter what, telling the person
+        // nothing they need (they just watched the QR/status screen
+        // confirm the join). screenManager->initCurrentScreen() below
+        // paints the real first screen immediately instead.
         header.begin(tz);
-        header.draw();
-        
-        tft.setTextColor(MY_WHITE);
-        tft.setTextSize(2);
-        tft.setCursor(20, 100);
-        tft.println("Connected to WiFi!");
-
-        tft.setCursor(20, 140);
-        tft.println(WiFi.localIP());
-
-        delay(2000);
 
         // Update dashboard with location
         dashboardScreen->setTimezone(tz);

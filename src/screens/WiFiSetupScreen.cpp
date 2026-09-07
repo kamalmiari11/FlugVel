@@ -87,19 +87,14 @@ void WiFiSetupScreen::showStep1() {
     // CaptivePortal::kSetupHost ("setup.flugvel.com"), not the raw AP IP -
     // this AP answers every DNS query with itself (see CaptivePortal.h), so
     // the name works with no internet at all and is something a person can
-    // actually retype if the QR scan fails. Sized down to 1 and split
-    // across two lines at the first dot - this column is only ~74px wide
-    // (it sits beside the QR chip), too narrow for the full name on one
-    // line at size 2 the way the short IP used to fit. Split at runtime
-    // from kSetupHost itself, not hardcoded, so this can't drift from it.
-    String setupHost = CaptivePortal::kSetupHost;
-    int dot = setupHost.indexOf('.');
+    // actually retype if the QR scan fails. This panel runs landscape
+    // (320px wide - see setRotation() in main.cpp), so the ~150px-wide
+    // column beside the QR chip fits the whole name on one line at size 1
+    // (about 108px) with room to spare.
     tft->setTextSize(1);
     tft->setTextColor(t.accent, t.bg);
     tft->setCursor(cx, 132);
-    tft->print(setupHost.substring(0, dot + 1));
-    tft->setCursor(cx, 142);
-    tft->print(setupHost.substring(dot + 1));
+    tft->print(CaptivePortal::kSetupHost);
 
     // --- Bottom hint strip: same rule + dim line as the ActionLegend ---
     const int sy = tft->height() - 22;

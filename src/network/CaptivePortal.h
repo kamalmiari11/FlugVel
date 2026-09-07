@@ -71,7 +71,7 @@ public:
     bool consumeConfigChanged();
 
     // Raised when the page's final Save succeeds. The device closes the
-    // portal and leaves the "Customise on phone" screen on the next tick -
+    // portal and leaves the "Configure on phone" screen on the next tick -
     // finishing on the phone should put the device back where it was, not
     // leave a server listening and a QR on the panel.
     bool closeRequested() const { return _closeRequested; }
