@@ -2,13 +2,28 @@
 #include "../config/NotesSource.h"
 #include "../ui/Theme.h"
 #include <WiFi.h>
+#include <string.h>
+#include <time.h>
 
 NotesScreen::NotesScreen(TFT_eSPI* display)
-    : Screen(display), _count(0), _sel(0), _scroll(0),
-      _fetched(false), _lastError(0), _lastFetch(0), _needsRedraw(true) {}
+    : Screen(display), _count(0), _visibleCount(0), _sel(0), _scroll(0),
+      _todoTotal(0), _todoChecked(0),
+      _fetched(false), _lastError(0), _lastFetch(0), _needsRedraw(true) {
+    memset(_open, 0, sizeof(_open));
+}
 
 void NotesScreen::init() {
     _needsRedraw = true;
+}
+
+// How many rows fit below listTop() before running into the action-legend
+// strip - computed rather than a fixed constant because listTop() itself
+// moves down when the progress row is showing, and this has to stay in
+// step with it or the last row would draw underneath the legend text.
+int NotesScreen::visibleRows() const {
+    int bodyBottom = 20 + (tft->height() - 50);   // matches the fillRect() below
+    int rows = (bodyBottom - listTop()) / ROW_H;
+    return rows > 0 ? rows : 1;
 }
 
 // ---- data ----
@@ -26,15 +41,146 @@ void NotesScreen::doFetch() {
     tft->setTextDatum(TL_DATUM);
 
     int got = fetchNotionNotes(_items, MAX_ITEMS, NotesSource::token(),
-                                NotesSource::pageId(), NotesSource::showChecked());
+                                NotesSource::pageId(), NotesSource::showChecked(),
+                                &_todoTotal, &_todoChecked);
     if (got >= 0) { _count = got; _lastError = 0; }
     else          { _count = 0;   _lastError = got; }
 
+    // Fresh fetch, fresh accordion state - everything closed, then (if
+    // the setting's on) today's day opens itself, falling back to the
+    // first heading on the page if nothing matches today's name.
+    memset(_open, 0, sizeof(_open));
+    if (NotesSource::groupByDay()) autoOpenToday();
+    rebuildVisible();
+
     _fetched   = true;
     _lastFetch = millis();
-    if (_sel >= _count) _sel = _count > 0 ? _count - 1 : 0;
+    _sel    = 0;
     _scroll = 0;
     _needsRedraw = true;
+}
+
+// Builds _visible[]/_visibleCount from _items[] + _open[]: everything
+// above the first heading, every heading itself, and a heading's children
+// only while that heading is open (or always, when day-grouping is off -
+// same list, same order, as the old flat screen had).
+void NotesScreen::rebuildVisible() {
+    _visibleCount = 0;
+    bool open = true;   // items above the first heading are always shown
+    for (int i = 0; i < _count && _visibleCount < MAX_ITEMS; i++) {
+        const NoteItem &it = _items[i];
+        if (it.isHeading) {
+            _visible[_visibleCount++] = i;
+            open = !NotesSource::groupByDay() || _open[i];
+            continue;
+        }
+        if (open && _visibleCount < MAX_ITEMS) _visible[_visibleCount++] = i;
+    }
+}
+
+// Picks which heading opens on a fresh fetch: the one whose text mentions
+// today's weekday (matched case-insensitively against both the full name
+// and its 3-letter short form, so "Monday" and "Mon" both count), or the
+// first heading on the page if nothing matches - a page with headings
+// like "Shopping"/"Project" instead of day names just always opens its
+// first section rather than none at all. Leaves everything closed if the
+// page has no headings, or the clock hasn't synced yet and there's no
+// heading to fall back on either.
+void NotesScreen::autoOpenToday() {
+    static const char* kFull[7]  = { "sunday", "monday", "tuesday", "wednesday",
+                                      "thursday", "friday", "saturday" };
+    static const char* kShort[7] = { "sun", "mon", "tue", "wed", "thu", "fri", "sat" };
+
+    int wday = -1;   // -1 = clock not synced / unknown - matching's just skipped
+    time_t now = time(nullptr);
+    if (now > 1600000000) {
+        struct tm tmNow;
+        localtime_r(&now, &tmNow);
+        wday = tmNow.tm_wday;   // 0=Sunday..6=Saturday
+    }
+
+    int firstHeading = -1;
+    int todayHeading  = -1;
+    for (int i = 0; i < _count; i++) {
+        if (!_items[i].isHeading) continue;
+        if (firstHeading < 0) firstHeading = i;
+        if (wday >= 0) {
+            String txt = _items[i].text;
+            txt.toLowerCase();
+            if (txt.indexOf(kFull[wday]) >= 0 || txt.indexOf(kShort[wday]) >= 0) {
+                todayHeading = i;
+                break;
+            }
+        }
+    }
+
+    int toOpen = (todayHeading >= 0) ? todayHeading : firstHeading;
+    if (toOpen >= 0) _open[toOpen] = true;
+}
+
+// Counts the to_do children directly under one heading (up to the next
+// heading or the end of the list) - used for the "(2/3)" done-count shown
+// on a closed day. Independent of _open[]/_visible[] on purpose: a
+// closed day's count still needs to reflect ALL of its to-dos, not just
+// what would currently be drawn if it were open.
+void NotesScreen::dayTally(int headingIdx, int &total, int &checked) const {
+    total = 0; checked = 0;
+    for (int i = headingIdx + 1; i < _count; i++) {
+        const NoteItem &it = _items[i];
+        if (it.isHeading) break;
+        if (it.isTodo) { total++; if (it.checked) checked++; }
+    }
+}
+
+int NotesScreen::selectedItemIndex() const {
+    if (_sel < 0 || _sel >= _visibleCount) return -1;
+    return _visible[_sel];
+}
+
+// Opens the given heading and closes every other one (accordion: only one
+// day open at a time), or just closes it if it was already open. Keeps
+// the selection on that same heading row afterward, scrolling just enough
+// to keep it on screen.
+void NotesScreen::toggleDay(int headingIdx) {
+    bool wasOpen = _open[headingIdx];
+    for (int i = 0; i < _count; i++) if (_items[i].isHeading) _open[i] = false;
+    _open[headingIdx] = !wasOpen;
+
+    rebuildVisible();
+
+    for (int i = 0; i < _visibleCount; i++) {
+        if (_visible[i] == headingIdx) { _sel = i; break; }
+    }
+    int rows = visibleRows();
+    if (_sel < _scroll) _scroll = _sel;
+    if (_sel >= _scroll + rows) _scroll = _sel - rows + 1;
+    if (_scroll < 0) _scroll = 0;
+    _needsRedraw = true;
+}
+
+// Flips one to-do's checked state. Optimistic: the box and text update
+// immediately (via a direct draw() call, same "show it, then do the slow
+// part" order doFetch() already uses for its own loading message) and
+// only the Notion sync happens in the background of that - if it fails,
+// the change is quietly reverted rather than surfaced as an error state.
+void NotesScreen::toggleCheck(int idx) {
+    NoteItem &n = _items[idx];
+    bool newChecked = !n.checked;
+
+    n.checked = newChecked;
+    if (newChecked) _todoChecked++;
+    else if (_todoChecked > 0) _todoChecked--;
+    _needsRedraw = true;
+    draw();
+
+    bool ok = setNotionTodoChecked(NotesSource::token(), n.id, newChecked);
+    if (!ok) {
+        Serial.println("[Notes] checkbox sync failed, reverting");
+        n.checked = !newChecked;
+        if (newChecked) { if (_todoChecked > 0) _todoChecked--; }
+        else _todoChecked++;
+        _needsRedraw = true;
+    }
 }
 
 void NotesScreen::onConfigChanged() {
@@ -86,29 +232,108 @@ void NotesScreen::draw() {
     if (_lastError != 0 && _count == 0) { emptyState("Couldn't load notes", "check the connection"); return; }
     if (_count == 0) { emptyState("Nothing here yet", "add some items to the page"); return; }
 
+    if (_todoTotal > 0) drawProgress();
     drawList();
+}
+
+// A single "N/M done" row pinned under the header, only when the page
+// actually has to-dos on it - a page of plain notes gets no progress row
+// at all, rather than an empty "0/0" that means nothing.
+void NotesScreen::drawProgress() {
+    const Theme &t = ThemeManager::current();
+    const int W = tft->width();
+    const int y = 24;
+
+    tft->setTextSize(1);
+    tft->setTextColor(t.fgDim, t.bg);
+    tft->setCursor(6, y);
+    tft->print("TO-DO");
+
+    char counter[16];
+    snprintf(counter, sizeof(counter), "%d/%d done", _todoChecked, _todoTotal);
+    tft->setTextDatum(TR_DATUM);
+    tft->setTextColor(_todoChecked == _todoTotal ? t.accent2 : t.fgDim, t.bg);
+    tft->drawString(counter, W - 6, y);
+    tft->setTextDatum(TL_DATUM);
+
+    // A thin filled bar underneath does the same job as the text but reads
+    // at a glance - proportional width, floor of a couple pixels so a
+    // freshly-started list (0 done) still shows a sliver rather than
+    // nothing at all.
+    const int barX = 6, barY = y + 12, barW = W - 12, barH = 3;
+    tft->fillRect(barX, barY, barW, barH, t.rule);
+    int fillW = _todoTotal > 0 ? (barW * _todoChecked) / _todoTotal : 0;
+    if (fillW > 0) tft->fillRect(barX, barY, fillW, barH, t.accent2);
 }
 
 void NotesScreen::drawList() {
     const Theme &t = ThemeManager::current();
     const int W = tft->width();
     const int rowX = 6, rowW = W - 12;
+    const int top  = listTop();
+    const int rows = visibleRows();
+    const bool grouped = NotesSource::groupByDay();
 
     tft->setTextDatum(TL_DATUM);
 
-    for (int i = 0; i < VISIBLE_ROWS; i++) {
-        int idx = _scroll + i;
-        if (idx >= _count) break;
+    for (int i = 0; i < rows; i++) {
+        int visIdx = _scroll + i;
+        if (visIdx >= _visibleCount) break;
+        int idx = _visible[visIdx];
 
         const NoteItem &n = _items[idx];
-        int y = LIST_TOP + i * ROW_H;
-        bool sel = (idx == _sel);
+        int y = top + i * ROW_H;
+        bool sel = (visIdx == _sel);
 
         uint16_t bg = sel ? t.selectBg : t.bg;
         uint16_t fg = sel ? t.selectFg : t.fg;
 
         tft->fillRect(rowX, y, rowW, ROW_H - 2, bg);
         if (sel) tft->fillRect(rowX, y, 4, ROW_H - 2, t.accent);
+
+        if (n.isHeading) {
+            // A closed day's own done-count ("(2/3)"), right-aligned,
+            // drawn first so its width can be reserved from the heading
+            // text's own truncation budget below. Only shown at all when
+            // day-grouping is on and that day actually has to-dos.
+            char mark[12] = "";
+            bool markDone = false;
+            int markW = 0;
+            if (grouped) {
+                int total = 0, checked = 0;
+                dayTally(idx, total, checked);
+                if (total > 0) {
+                    snprintf(mark, sizeof(mark), "(%d/%d)", checked, total);
+                    markDone = (checked == total);
+                }
+            }
+            if (mark[0]) {
+                tft->setTextSize(1);
+                markW = tft->textWidth(mark) + 6;
+                tft->setTextDatum(TR_DATUM);
+                tft->setTextColor(sel ? t.selectFg : (markDone ? t.accent2 : t.fgDim), bg);
+                tft->drawString(mark, rowX + rowW - 6, y + (ROW_H - 2 - 8) / 2);
+                tft->setTextDatum(TL_DATUM);
+            }
+
+            // Section divider: a leading caret when day-grouping is on
+            // (">" closed, "v" open - same ASCII convention as the
+            // "^v SCROLL" legend hint), accent-colored text, with a thin
+            // rule along the bottom of the row so it reads as a break in
+            // the list rather than just another item.
+            const int textX = rowX + 8;
+            const int maxW  = rowW - 8 - 4 - markW;
+            tft->setTextSize(2);
+            tft->setTextColor(sel ? t.selectFg : t.accent, bg);
+            String text = n.text[0] ? n.text : "(empty)";
+            if (grouped) text = String(_open[idx] ? "v " : "> ") + text;
+            while (text.length() > 1 && tft->textWidth(text) > maxW)
+                text.remove(text.length() - 1);
+            tft->setCursor(textX, y + (ROW_H - 2 - 16) / 2);
+            tft->print(text);
+            tft->fillRect(rowX, y + ROW_H - 3, rowW, 1, sel ? t.selectFg : t.rule);
+            continue;
+        }
 
         // marker: a checkbox for a to-do (ticked if already done), a
         // small dot for every other block type this screen shows.
@@ -137,40 +362,63 @@ void NotesScreen::drawList() {
     }
 
     // scroll indicator
-    if (_count > VISIBLE_ROWS) {
-        int trackH = VISIBLE_ROWS * ROW_H - 6;
-        int th = max(8, trackH * VISIBLE_ROWS / _count);
-        int ty = LIST_TOP + (trackH - th) * _scroll / (_count - VISIBLE_ROWS);
-        tft->fillRect(W - 3, LIST_TOP, 2, trackH, t.bg);
+    if (_visibleCount > rows) {
+        int trackH = rows * ROW_H - 6;
+        int th = max(8, trackH * rows / _visibleCount);
+        int ty = top + (trackH - th) * _scroll / (_visibleCount - rows);
+        tft->fillRect(W - 3, top, 2, trackH, t.bg);
         tft->fillRect(W - 3, ty, 2, th, t.rule);
     }
 }
 
 // ---- input ----
 void NotesScreen::onEncoderUp() {
-    if (_count == 0) return;
+    if (_visibleCount == 0) return;
     if (_sel > 0) _sel--;
     if (_sel < _scroll) _scroll = _sel;
     _needsRedraw = true;
 }
 
 void NotesScreen::onEncoderDown() {
-    if (_count == 0) return;
-    if (_sel < _count - 1) _sel++;
-    if (_sel >= _scroll + VISIBLE_ROWS) _scroll = _sel - VISIBLE_ROWS + 1;
+    if (_visibleCount == 0) return;
+    int rows = visibleRows();
+    if (_sel < _visibleCount - 1) _sel++;
+    if (_sel >= _scroll + rows) _scroll = _sel - rows + 1;
     _needsRedraw = true;
 }
 
-// No detail view to toggle into (a note line is already the whole content)
-// - the button instead forces an immediate refetch rather than waiting out
-// REFRESH_MS, the same way pulling to refresh works elsewhere.
+// Context-sensitive: KO opens/closes a day when a heading is selected
+// (only meaningful with day-grouping on), ticks/unticks a to-do when one
+// of those is selected, and otherwise falls back to forcing an immediate
+// refetch - the same "don't wait for REFRESH_MS" behavior this always had.
 void NotesScreen::onButtonPress() {
     if (!NotesSource::usable()) return;
+
+    int idx = selectedItemIndex();
+    if (idx >= 0) {
+        const NoteItem &n = _items[idx];
+        if (NotesSource::groupByDay() && n.isHeading) { toggleDay(idx); return; }
+        if (n.isTodo) { toggleCheck(idx); return; }
+    }
+
     _fetched = false;
     _needsRedraw = true;
 }
 
 void NotesScreen::getActionLegend(String &line1, String &line2) const {
-    line1 = (_count > VISIBLE_ROWS) ? "^v SCROLL NOTES" : "";
+    line1 = (_visibleCount > visibleRows()) ? "^v SCROLL NOTES" : "";
+
+    int idx = selectedItemIndex();
+    if (idx >= 0) {
+        const NoteItem &n = _items[idx];
+        if (NotesSource::groupByDay() && n.isHeading) {
+            line2 = _open[idx] ? "o CLOSE DAY" : "o OPEN DAY";
+            return;
+        }
+        if (n.isTodo) {
+            line2 = n.checked ? "o UNTICK" : "o TICK";
+            return;
+        }
+    }
     line2 = "o REFRESH";
 }

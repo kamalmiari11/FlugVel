@@ -437,11 +437,13 @@ void CaptivePortal::setupRoutes()
     // run, when there is no connection yet.
     server.on("/config", HTTP_GET, [this]() {
         if (guardWithPin()) return;
+        server.sendHeader("Cache-Control", "no-store");
         server.send(200, "text/html", configPageHtml(false));
     });
     server.on("/config", HTTP_POST, [this]() {
         if (guardWithPin()) return;
         applyConfigPost();
+        server.sendHeader("Cache-Control", "no-store");
         server.send(200, "text/html", configPageHtml(true));
     });
 
@@ -487,6 +489,7 @@ void CaptivePortal::setupRoutes()
 
     server.on("/", [this]() {
         if (guardWithPin()) return;
+        server.sendHeader("Cache-Control", "no-store");
         server.send(200, "text/html", configPageHtml(false));
     });
 
@@ -783,7 +786,8 @@ void CaptivePortal::applyConfigPost()
         String page = server.arg("npage"); page.trim();
         int notesMax = num("nmax", 5, 15, NotesSource::maxItems());
         bool notesChecked = flag("nchk", NotesSource::showChecked() ? 1 : 0) != 0;
-        NotesSource::set(tok, page, notesMax, notesChecked);
+        bool notesGroup   = flag("ngrp", NotesSource::groupByDay() ? 1 : 0) != 0;
+        NotesSource::set(tok, page, notesMax, notesChecked, notesGroup);
         NotesSource::save();
     }
 

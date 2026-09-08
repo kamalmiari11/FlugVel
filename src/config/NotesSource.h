@@ -20,11 +20,13 @@ namespace NotesSource {
     const String& pageId();
     int  maxItems();     // how many rows the screen keeps, clamped 5-15
     bool showChecked();  // include to_do blocks that are already checked off
+    bool groupByDay();   // collapse the list into per-heading day sections,
+                          // today's opened automatically - see NotesScreen
 
     bool usable();        // token + page both set
 
     // Editing. Doesn't write to flash; call save() when done.
-    void set(const String &token, const String &pageId, int maxItems, bool showChecked);
+    void set(const String &token, const String &pageId, int maxItems, bool showChecked, bool groupByDay);
     void save();
 
 } // namespace NotesSource

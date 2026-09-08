@@ -4,11 +4,15 @@
 // One line pulled from a Notion page's block children.
 struct NoteItem {
     static const int TEXT_LEN = 80;
+    static const int ID_LEN   = 40;   // Notion block ids are 36-char UUIDs
     char text[TEXT_LEN];
-    bool isTodo;    // true for a to_do block - drawn with a checkbox
-    bool checked;   // to_do only
+    char id[ID_LEN];  // this block's id - needed to PATCH a to_do's checked
+                       // state back to Notion; unused for any other type
+    bool isTodo;     // true for a to_do block - drawn with a checkbox
+    bool checked;    // to_do only
+    bool isHeading;  // heading_1/2/3 - drawn as a section divider, no marker
 
-    NoteItem() : isTodo(false), checked(false) { text[0] = 0; }
+    NoteItem() : isTodo(false), checked(false), isHeading(false) { text[0] = 0; id[0] = 0; }
 };
 
 // Reads the top-level blocks of a Notion page through a free "internal
@@ -33,5 +37,24 @@ struct NoteItem {
 //      integration yet
 //  -3  404 - page id not found
 //  -4  response wasn't the JSON shape expected
+//
+// todoTotal/todoChecked, if given, are set to the number of to_do blocks
+// seen and how many of those were checked off - counted from every to_do
+// block encountered, even one dropped from `out` by includeChecked=false,
+// so a "3/7 done" progress line stays accurate whether or not finished
+// items are actually being shown in the list. Left untouched (not zeroed)
+// when null.
 int fetchNotionNotes(NoteItem *out, int maxItems, const String &token,
-                      const String &pageRef, bool includeChecked);
+                      const String &pageRef, bool includeChecked,
+                      int *todoTotal = nullptr, int *todoChecked = nullptr);
+
+// Flips a single to_do block's checked state on Notion itself (a PATCH,
+// not a fetch) - used when the on-device screen lets you tick something
+// off directly. The integration token needs "Insert content"/"Update
+// content" capability for this to succeed, not just read access; a token
+// created read-only gets a 401/403 same as a bad token would, and the
+// caller should treat both the same way (revert the optimistic UI change
+// quietly, no fetchNotionNotes() error state is triggered by this).
+// Returns false on any failure - no WiFi, bad token/permissions, bad
+// blockId, or a non-2xx response.
+bool setNotionTodoChecked(const String &token, const String &blockId, bool checked);

@@ -37,7 +37,7 @@
 
   <div class="manual">
     <h1 style="margin-top:0;">User Manual</h1>
-    <p class="sub" style="margin-bottom:0;">Everything you need to set up and use a FlugVel device. Covers firmware v1.0.7.</p>
+    <p class="sub" style="margin-bottom:0;">Everything you need to set up and use a FlugVel device. Covers firmware v1.0.11.</p>
 
     <div class="manual-section">
       <h2 id="setup">1. First-time setup</h2>
@@ -81,8 +81,8 @@
     </div>
 
     <div class="manual-section">
-      <h2 id="screens">3. The six screens</h2>
-      <p>Default order is Plane → Weather → Games → Focus → Calendar → Settings, but you can reorder or hide any of these except Settings from the Customise tab — so if you never play the games, they don't have to be in your cycle at all.</p>
+      <h2 id="screens">3. The seven screens</h2>
+      <p>Default order is Plane → Weather → Games → Focus → Calendar → Notes → Settings, but you can reorder or hide any of these except Settings from the Customise tab — so if you never play the games, they don't have to be in your cycle at all.</p>
 
       <h3>Plane</h3>
       <p>Shows the nearest aircraft currently overhead — callsign, altitude, speed and bearing — with an optional flyover animation when one passes near. When the sky is empty, it shows a bouncing callsign along with a quote of the day (both can be turned off individually). A minimum-altitude filter is available if you'd rather not see everything down to ground level.</p>
@@ -99,13 +99,18 @@
       <h3>Calendar</h3>
       <p>An agenda of the next ~60 days, pulled from up to four of your own read-only iCal feed URLs (set these up in Customise — most calendar apps have a "secret address in iCal format" you can copy from their sharing settings). Turn the knob to move through the list, press to open or close a detail view for one event. Feeds sharing the same event get merged into one entry rather than showing it twice; you can also cap how many events are held in memory and hide events once they've already ended.</p>
 
+      <h3>Notes</h3>
+      <p>A short list pulled from one Notion page — to-do checkboxes, bullet and numbered items, paragraphs and headings, in the order they sit on the page. Turn the knob to scroll. The button is context-sensitive: it ticks or unticks whatever to-do is selected, opens or closes a day (with <strong>Group notes by day</strong> on — see below), or otherwise forces an immediate refresh instead of waiting for the next scheduled check. The bottom legend always shows which of those it'll do next.</p>
+      <p>Ticking a box updates on screen right away and syncs to Notion in the background; if a checked item is set to stay hidden ("Show checked items" off in Customise), it stays visible-but-dimmed until the next refresh rather than vanishing mid-scroll. Checking things off from the device needs the Notion integration to have <strong>update</strong> permission, not just read — see the step-by-step setup in §4.</p>
+      <p>Turn on <strong>Group notes by day</strong> in Customise and every heading becomes a collapsible day section instead of a plain divider: today's opens itself automatically (matched against the heading's own text, so a heading literally has to say something like "Monday"), everything else stays closed with a small done-count next to its name (like "Tuesday (2/3)"), and only one day is ever open at a time — opening another closes the one before it. Anything written above the very first heading always shows, whether or not it's grouped under a day.</p>
+
       <h3>Settings</h3>
       <p>Always last in the cycle, and the one screen that can't be hidden — it's covered in full in §5. It's mostly device info, a quick on-device theme picker, and the doorway to updates/restart/reset; the deeper customisation lives in the setup console instead (§4).</p>
     </div>
 
     <div class="manual-section">
       <h2 id="console">4. The setup console</h2>
-      <p>Beyond the first-time setup, FlugVel keeps its configuration page running as long as it's on your Wi-Fi — you don't need the knob for most settings at all. From <strong>Settings → Customise</strong> on the device, it shows a QR code and an address; scan it or type the address into any browser on the same network, and it opens straight to the Customise tab.</p>
+      <p>Beyond the first-time setup, FlugVel keeps its configuration page running as long as it's on your Wi-Fi — you don't need the knob for most settings at all. From <strong>Settings → Configure on phone</strong> on the device, it shows a QR code and an address; scan it or type the address into any browser on the same network, and it opens straight to the Customise tab.</p>
       <p>If typing it by hand, use the friendly name shown on the device (something like <code>flugvel-a1b2.local</code>) — if your phone or router doesn't resolve <code>.local</code> addresses, use the numeric IP address shown instead (also on the Settings → Device Info screen).</p>
       <p>The console has three tabs:</p>
       <table>
@@ -115,6 +120,54 @@
         <tr><td><span class="tag">03</span> Customise</td><td>Everything else: theme, brightness, date/time format, units, left-handed mode, action legend on/off, screen order and visibility, startup behavior (boot to home vs. resume the last screen you were on), and every per-screen option described in §3 — plus your calendar feeds.</td></tr>
       </table>
       <p>Changes save straight back to the device over Wi-Fi — no reboot needed, no app to install. Closing the page after saving is all there is to it.</p>
+
+      <h3>Connect your notes (Notion)</h3>
+      <div class="step">
+        <div class="step-num">Step 1</div>
+        <p style="margin:6px 0 0;">Go to <code>notion.so/my-integrations</code> (sign in with the Notion account that owns the page you want to show), and click <strong>New integration</strong>.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 2</div>
+        <p style="margin:6px 0 0;">Give it any name (e.g. "FlugVel") and pick your workspace. Under <strong>Capabilities</strong>, turn on both <strong>Read content</strong> and <strong>Update content</strong> — Update is what lets you tick a box on the device itself; with only Read, the list still shows but ticking a box won't stick. Save.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 3</div>
+        <p style="margin:6px 0 0;">Copy the <strong>Internal Integration Secret</strong> it generates (starts with <code>secret_</code> or <code>ntn_</code>) — you won't be shown it again after leaving the page, so copy it now.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 4</div>
+        <p style="margin:6px 0 0;">Open the actual Notion page you want on the device. Click the <strong>&middot;&middot;&middot;</strong> menu in its top-right corner &rsaquo; <strong>Connections</strong> &rsaquo; find your integration and add it. Skipping this step is the #1 cause of "Page not found" below — a token alone can't see any page until it's added here.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 5</div>
+        <p style="margin:6px 0 0;">Back in the setup console's <strong>Customise</strong> tab, open the <strong>Notes</strong> section. Paste the secret into <strong>Integration token</strong>, and paste the page's address (or just its id) into <strong>Page</strong>.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 6 <span class="tag">optional</span></div>
+        <p style="margin:6px 0 0;">If your page is laid out with day headings ("Monday", "Tuesday", ...), turn on <strong>Group notes by day</strong> — see §3 for exactly how that's structured and rendered. Save, and the Notes screen fetches on its next cycle.</p>
+      </div>
+
+      <h3>Connect your events (calendar)</h3>
+      <div class="step">
+        <div class="step-num">Step 1</div>
+        <p style="margin:6px 0 0;">Find your calendar's private iCal address. In Google Calendar: Settings &rsaquo; pick the calendar under "Settings for my calendars" &rsaquo; <strong>Secret address in iCal format</strong>. In Apple/iCloud Calendar: right-click (or long-press) the calendar &rsaquo; <strong>Share Calendar</strong> &rsaquo; turn on Public Calendar &rsaquo; copy the link. In Outlook.com: Settings &rsaquo; Shared calendars &rsaquo; publish a calendar &rsaquo; copy the ICS link.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 2</div>
+        <p style="margin:6px 0 0;">Copy that address. If it starts with <code>webcal://</code>, swap that prefix for <code>https://</code> — either works, but https:// is the safer bet across calendar apps.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 3</div>
+        <p style="margin:6px 0 0;">In the setup console's <strong>Customise</strong> tab, open the <strong>Calendar</strong> section, and paste it into one of the four feed slots — the <strong>Label</strong> field next to it is just a short name for your own reference, it isn't shown on the device.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 4 <span class="tag">optional</span></div>
+        <p style="margin:6px 0 0;">Repeat for up to three more calendars — work, a partner's, a shared family one — they merge into a single agenda, with "Merge duplicates" collapsing anything that appears on more than one of them into a single row.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 5</div>
+        <p style="margin:6px 0 0;">Set <strong>Look ahead</strong> (how far into the future events are listed) and <strong>Keep at most</strong> (a cap across every feed combined) to taste, and save.</p>
+      </div>
     </div>
 
     <div class="manual-section">
@@ -123,7 +176,7 @@
         <tr><th>Option</th><th>What it's for</th></tr>
         <tr><td>Device Info</td><td>Wi-Fi status, IP address and uptime — plus the QR code/address for the setup console.</td></tr>
         <tr><td>Theme</td><td>A quick picker for the four built-in color themes (MonoDotMatrix, AmberTerminal, GreenPhosphor, IceBlue) — turn the knob to preview each live before confirming.</td></tr>
-        <tr><td>Customise</td><td>Shows the QR code/address to open the full setup console on your phone (§4) rather than clicking through everything with the knob.</td></tr>
+        <tr><td>Configure on phone</td><td>Shows the QR code/address to open the full setup console on your phone (§4) rather than clicking through everything with the knob.</td></tr>
         <tr><td>Update</td><td>Manually checks for new firmware right now (see below).</td></tr>
         <tr><td>Restart</td><td>Reboots the device.</td></tr>
         <tr><td>Factory Reset</td><td>Same effect as the button-hold gesture below, reachable from the menu instead.</td></tr>
@@ -159,6 +212,8 @@
         <tr><td>No planes ever show up</td><td>Check your location was set correctly (Settings → Device Info or the console's Location tab), and that the minimum-altitude filter in Customise isn't set higher than you expect.</td></tr>
         <tr><td>Weather looks wrong for your area</td><td>Re-enter your location manually in the console rather than relying on network-based estimation, which is approximate.</td></tr>
         <tr><td>Calendar shows nothing, or the wrong events</td><td>Confirm each feed URL in Customise is a direct link to an .ics file (not a webpage), and that the feed is still marked enabled.</td></tr>
+        <tr><td>Notes says "Can't access page" or "Page not found"</td><td>Double-check the integration token, and make sure the page was actually shared with the integration (its ··· menu → Connections) — a valid token alone isn't enough, the integration also has to be added to that specific page.</td></tr>
+        <tr><td>Ticking a box on the device doesn't stick</td><td>The integration needs "Update content" capability, not just "Read content" — edit the integration at notion.so/my-integrations, turn that on, and save (§4 has the full walkthrough).</td></tr>
         <tr><td>Can't reach the setup console by typing the .local address</td><td>Some phones/routers don't resolve <code>.local</code> names. Use the numeric IP address shown on Settings → Device Info instead.</td></tr>
         <tr><td>Stuck on an old firmware version</td><td>Go to Settings → Update to force a manual check rather than waiting for the automatic one at boot.</td></tr>
       </table>
