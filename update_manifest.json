@@ -1,5 +1,5 @@
 {
-  "version": "1.0.11",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.11/flugvel_1_0_11.bin",
-  "notes": "Group Notes by day (today opens automatically) and tick to-dos right on the device"
+  "version": "1.0.12",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.12/flugvel_1_0_12.bin",
+  "notes": "v1.0.12: always-open-first-day, marquee scroll, Notion template fix"
 }
