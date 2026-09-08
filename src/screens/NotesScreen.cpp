@@ -174,13 +174,15 @@ void NotesScreen::update() {
     }
 
     // Paces the selected row's text scroll independently of any fetch -
-    // only runs once there's actually a list on screen to scroll.
+    // only runs once there's actually a list on screen to scroll. Redraws
+    // just that one row (tickMarqueeRow(), not _needsRedraw/draw()) so a
+    // scrolling row doesn't repaint the whole list several times a second.
     if (_fetched && _visibleCount > 0) {
         unsigned long now = millis();
         if (now >= _marqueeNextTick) {
             _marqueeNextTick = now + MARQUEE_TICK_MS;
             _marqueeTick++;
-            _needsRedraw = true;
+            tickMarqueeRow();
         }
     }
 }
@@ -290,6 +292,68 @@ String NotesScreen::layoutRowText(const String &full, int maxW, bool animate) co
     String t = full.substring(startChar);
     while (t.length() > 1 && tft->textWidth(t) > maxW) t.remove(t.length() - 1);
     return t;
+}
+
+// Redraws just the selected row's text - see the header's doc comment.
+// Mirrors drawList()'s own per-row layout exactly (same maxW math, same
+// text) but touches only the text region of that one row, so it never
+// disturbs the marker/checkbox, the done-count, or the divider rule line
+// next to it - those don't change between ticks, only the scrolled text
+// does.
+void NotesScreen::tickMarqueeRow() {
+    int rowOnScreen = _sel - _scroll;
+    if (rowOnScreen < 0 || rowOnScreen >= visibleRows()) return;
+    int idx = selectedItemIndex();
+    if (idx < 0) return;
+
+    const Theme &t = ThemeManager::current();
+    const int W = tft->width();
+    const int rowX = 6, rowW = W - 12;
+    const int y = listTop() + rowOnScreen * ROW_H;
+    const bool grouped = NotesSource::groupByDay();
+    const NoteItem &n = _items[idx];
+
+    tft->setTextDatum(TL_DATUM);
+    tft->setTextSize(2);
+
+    if (n.isHeading) {
+        int markW = 0;
+        if (grouped) {
+            char mark[12] = "";
+            int total = 0, checked = 0;
+            dayTally(idx, total, checked);
+            if (total > 0) {
+                snprintf(mark, sizeof(mark), "(%d/%d)", checked, total);
+                tft->setTextSize(1);
+                markW = tft->textWidth(mark) + 6;
+                tft->setTextSize(2);
+            }
+        }
+        const int textX = rowX + 8;
+        const int maxW  = rowW - 8 - 4 - markW;
+        String text = n.text[0] ? n.text : "(empty)";
+        if (grouped) text = String(_open[idx] ? "v " : "> ") + text;
+        if (tft->textWidth(text) <= maxW) return;   // fits - nothing to animate
+
+        text = layoutRowText(text, maxW, true);
+        tft->fillRect(textX, y, maxW, ROW_H - 3, t.selectBg);   // stop short of the divider rule
+        tft->setTextColor(t.selectFg, t.selectBg);
+        tft->setCursor(textX, y + (ROW_H - 2 - 16) / 2);
+        tft->print(text);
+        return;
+    }
+
+    const int textX = rowX + 26;
+    const int maxW  = rowW - 26 - 4;
+    String text = n.text[0] ? n.text : "(empty)";
+    if (tft->textWidth(text) <= maxW) return;   // fits - nothing to animate
+
+    text = layoutRowText(text, maxW, true);
+    uint16_t textCol = (n.isTodo && n.checked) ? t.fgDim : t.selectFg;
+    tft->fillRect(textX, y, maxW, ROW_H - 2, t.selectBg);
+    tft->setTextColor(textCol, t.selectBg);
+    tft->setCursor(textX, y + (ROW_H - 2 - 16) / 2);
+    tft->print(text);
 }
 
 void NotesScreen::drawList() {

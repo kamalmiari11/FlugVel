@@ -7,7 +7,9 @@
 // paragraphs and headings, in the order they sit on the page. Turn the
 // encoder to scroll past MAX_ITEMS rows; a selected row whose text doesn't
 // fit slowly scrolls through the whole thing instead of just sitting cut
-// off (see layoutRowText()).
+// off (see layoutRowText()) - animated by update() on a timer, but via
+// tickMarqueeRow() redrawing just that one row, not a full-screen redraw
+// several times a second.
 //
 // The KO button is context-sensitive, matching whatever's selected (see
 // getActionLegend()): on a to-do it ticks/unticks it - optimistically, and
@@ -101,6 +103,14 @@ private:
     // reached, pauses there too, then jumps back to the start - paced by
     // _marqueeTick, which update() advances on a timer.
     String layoutRowText(const String &full, int maxW, bool animate) const;
+
+    // Redraws just the currently selected row - called from update() every
+    // MARQUEE_TICK_MS instead of setting _needsRedraw, so a scrolling row's
+    // animation doesn't repaint the whole list (and everything else on it)
+    // several times a second. A no-op whenever there's nothing to animate:
+    // nothing selected, the selection has scrolled off screen, or that
+    // row's text already fits without scrolling.
+    void tickMarqueeRow();
 
     // Day-accordion + checkbox support. All operate on _items[] (which
     // always holds everything the last fetch returned, open or not) and

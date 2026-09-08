@@ -102,47 +102,73 @@
 // Manual §3's Notion template has a "Copy" button next to it
 // (data-copy-target points at the <pre> holding the plain-text template) -
 // copies its exact text so it pastes into Notion as real blocks rather
-// than however the browser would render the styled page around it.
+// than however the browser would render the styled page around it. Tries
+// the modern Clipboard API first, falls back to a hidden-textarea
+// execCommand("copy") (with the selection quirks Safari/iOS need to
+// actually honor it), and if even that's unavailable, selects the
+// template's own text so the button never claims "Copied!" when nothing
+// actually landed on the clipboard - a plain Ctrl/Cmd+C (or the mobile
+// selection menu's Copy) still works on whatever's now highlighted.
 (function () {
   var buttons = document.querySelectorAll("[data-copy-target]");
   if (!buttons.length) return;
 
-  function fallbackCopy(text) {
+  function selectText(el) {
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function execCommandCopy(text) {
     var ta = document.createElement("textarea");
     ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
+    ta.setAttribute("readonly", "");
+    ta.style.position = "absolute";
+    ta.style.left = "-9999px";
+    ta.style.top = "0";
     document.body.appendChild(ta);
     ta.focus();
     ta.select();
-    try { document.execCommand("copy"); } catch (e) {}
+    ta.setSelectionRange(0, text.length); // iOS Safari ignores a plain select()
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
     document.body.removeChild(ta);
+    return ok;
   }
 
   buttons.forEach(function (btn) {
+    var original = btn.textContent;
+
+    function setLabel(label, ms) {
+      btn.textContent = label;
+      btn.disabled = true;
+      setTimeout(function () {
+        btn.textContent = original;
+        btn.disabled = false;
+      }, ms);
+    }
+
     btn.addEventListener("click", function () {
       var target = document.getElementById(btn.getAttribute("data-copy-target"));
       if (!target) return;
       var text = target.innerText || target.textContent;
 
-      function flash() {
-        var original = btn.textContent;
-        btn.textContent = "Copied!";
-        btn.disabled = true;
-        setTimeout(function () {
-          btn.textContent = original;
-          btn.disabled = false;
-        }, 1400);
+      function onFailure() {
+        selectText(target);
+        setLabel("Selected \u2013 press Ctrl/Cmd+C", 2200);
       }
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(flash, function () {
-          fallbackCopy(text);
-          flash();
-        });
+        navigator.clipboard.writeText(text).then(
+          function () { setLabel("Copied!", 1400); },
+          function () { if (execCommandCopy(text)) setLabel("Copied!", 1400); else onFailure(); }
+        );
+      } else if (document.queryCommandSupported && document.queryCommandSupported("copy")) {
+        if (execCommandCopy(text)) setLabel("Copied!", 1400); else onFailure();
       } else {
-        fallbackCopy(text);
-        flash();
+        onFailure();
       }
     });
   });
