@@ -37,7 +37,7 @@
 
   <div class="manual">
     <h1 style="margin-top:0;">User Manual</h1>
-    <p class="sub" style="margin-bottom:0;">Everything you need to set up and use a FlugVel device. Covers firmware v1.0.11.</p>
+    <p class="sub" style="margin-bottom:0;">Everything you need to set up and use a FlugVel device. Covers firmware v1.0.12.</p>
 
     <div class="manual-section">
       <h2 id="setup">1. First-time setup</h2>
@@ -100,9 +100,9 @@
       <p>An agenda of the next ~60 days, pulled from up to four of your own read-only iCal feed URLs (set these up in Customise — most calendar apps have a "secret address in iCal format" you can copy from their sharing settings). Turn the knob to move through the list, press to open or close a detail view for one event. Feeds sharing the same event get merged into one entry rather than showing it twice; you can also cap how many events are held in memory and hide events once they've already ended.</p>
 
       <h3>Notes</h3>
-      <p>A short list pulled from one Notion page — to-do checkboxes, bullet and numbered items, paragraphs and headings, in the order they sit on the page. Turn the knob to scroll. The button is context-sensitive: it ticks or unticks whatever to-do is selected, opens or closes a day (with <strong>Group notes by day</strong> on — see below), or otherwise forces an immediate refresh instead of waiting for the next scheduled check. The bottom legend always shows which of those it'll do next.</p>
+      <p>A short list pulled from one Notion page — to-do checkboxes, bullet and numbered items, paragraphs and headings, in the order they sit on the page. Turn the knob to scroll; a selected row whose text is too long to fit on screen slowly scrolls through the rest of it on its own. The button is context-sensitive: it ticks or unticks whatever to-do is selected, opens or closes a day (with <strong>Group notes by day</strong> on — see below), or otherwise forces an immediate refresh instead of waiting for the next scheduled check. The bottom legend always shows which of those it'll do next.</p>
       <p>Ticking a box updates on screen right away and syncs to Notion in the background; if a checked item is set to stay hidden ("Show checked items" off in Customise), it stays visible-but-dimmed until the next refresh rather than vanishing mid-scroll. Checking things off from the device needs the Notion integration to have <strong>update</strong> permission, not just read — see the step-by-step setup in <a href="#console">§4</a>.</p>
-      <p>Turn on <strong>Group notes by day</strong> in Customise and every heading becomes a collapsible day section instead of a plain divider: today's opens itself automatically (matched against the heading's own text, so a heading literally has to say something like "Monday"), everything else stays closed with a small done-count next to its name (like "Tuesday (2/3)"), and only one day is ever open at a time — opening another closes the one before it. Anything written above the very first heading always shows, whether or not it's grouped under a day.</p>
+      <p>Turn on <strong>Group notes by day</strong> in Customise and every heading becomes a collapsible day section instead of a plain divider: the first heading on the page opens itself automatically, everything else stays closed with a small done-count next to its name (like "Tuesday (2/3)"), and only one day is ever open at a time — opening another closes the one before it. Anything written above the very first heading always shows, whether or not it's grouped under a day.</p>
 
       <p>Only some Notion block types are read, and only the ones sitting directly on the page — nothing nested inside a toggle, column or another block, since the device only ever asks Notion for the page's immediate children. Keep the page flat and it shows up exactly as built:</p>
       <table>
@@ -114,20 +114,18 @@
         <tr><td>Anything indented under another block</td><td>Skipped — only blocks directly on the page are read, so a toggle's contents stay invisible even when it's open.</td></tr>
       </table>
 
-      <p>A template to start from — copy this structure into a Notion page, share it with your integration (<a href="#console">§4</a>), and it renders exactly like this on the device:</p>
-      <div class="step">
-        <div class="step-num">TEMPLATE</div>
-        <p style="margin:6px 0 0; line-height:1.9;">
-          <strong>Monday</strong> <span style="color:var(--dim)">— Heading</span><br>
-          &#9744; Gym <span style="color:var(--dim)">— To-do</span><br>
-          &#9744; Laundry <span style="color:var(--dim)">— To-do</span><br>
-          &bull; Call mom about the weekend <span style="color:var(--dim)">— Bulleted list, a plain note rather than a to-do</span><br>
-          <strong>Tuesday</strong> <span style="color:var(--dim)">— Heading</span><br>
-          &#9744; Team meeting prep <span style="color:var(--dim)">— To-do</span><br>
-          &bull; Bring the charger this time <span style="color:var(--dim)">— Bulleted list</span>
-        </p>
+      <p>A template to start from: hit Copy, then paste straight into an empty Notion page. Notion recognizes plain text written this way as you paste it and converts each line into a real block on its own — a line starting with <code># </code> becomes a heading, <code>- [ ] </code> becomes a to-do checkbox, and a plain <code>- </code> becomes a bulleted list item — so nothing needs reformatting by hand afterward.</p>
+      <div class="template-box">
+        <button class="act small ghost copy-btn" type="button" data-copy-target="notionTemplate">Copy</button>
+        <pre id="notionTemplate"># Monday
+- [ ] Gym
+- [ ] Laundry
+- Call mom about the weekend
+# Tuesday
+- [ ] Team meeting prep
+- Bring the charger this time</pre>
       </div>
-      <p>Repeat that pattern per day and turn on <strong>Group notes by day</strong> to get a collapsible day-by-day list with today opened automatically. Leave the setting off and the exact same page just reads as one flat list, with each day's heading acting as a plain section divider instead.</p>
+      <p>Share the page with your integration (<a href="#console">§4</a>) and it renders exactly like this on the device. Repeat the pattern per day, and turn on <strong>Group notes by day</strong> to get a collapsible day-by-day list with the first day opened automatically. Leave the setting off and the exact same page just reads as one flat list, with each day's heading acting as a plain section divider instead.</p>
 
       <h3>Settings</h3>
       <p>Always last in the cycle, and the one screen that can't be hidden — it's covered in full in <a href="#settings">§5</a>. It's mostly device info, a quick on-device theme picker, and the doorway to updates/restart/reset; the deeper customisation lives in the setup console instead (<a href="#console">§4</a>).</p>

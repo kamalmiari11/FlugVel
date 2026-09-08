@@ -3,12 +3,12 @@
 #include "../ui/Theme.h"
 #include <WiFi.h>
 #include <string.h>
-#include <time.h>
 
 NotesScreen::NotesScreen(TFT_eSPI* display)
     : Screen(display), _count(0), _visibleCount(0), _sel(0), _scroll(0),
       _todoTotal(0), _todoChecked(0),
-      _fetched(false), _lastError(0), _lastFetch(0), _needsRedraw(true) {
+      _fetched(false), _lastError(0), _lastFetch(0), _needsRedraw(true),
+      _marqueeTick(0), _marqueeNextTick(0) {
     memset(_open, 0, sizeof(_open));
 }
 
@@ -47,16 +47,16 @@ void NotesScreen::doFetch() {
     else          { _count = 0;   _lastError = got; }
 
     // Fresh fetch, fresh accordion state - everything closed, then (if
-    // the setting's on) today's day opens itself, falling back to the
-    // first heading on the page if nothing matches today's name.
+    // the setting's on) the first day on the page opens itself.
     memset(_open, 0, sizeof(_open));
-    if (NotesSource::groupByDay()) autoOpenToday();
+    if (NotesSource::groupByDay()) openFirstDay();
     rebuildVisible();
 
     _fetched   = true;
     _lastFetch = millis();
     _sel    = 0;
     _scroll = 0;
+    _marqueeTick = 0;
     _needsRedraw = true;
 }
 
@@ -78,44 +78,17 @@ void NotesScreen::rebuildVisible() {
     }
 }
 
-// Picks which heading opens on a fresh fetch: the one whose text mentions
-// today's weekday (matched case-insensitively against both the full name
-// and its 3-letter short form, so "Monday" and "Mon" both count), or the
-// first heading on the page if nothing matches - a page with headings
-// like "Shopping"/"Project" instead of day names just always opens its
-// first section rather than none at all. Leaves everything closed if the
-// page has no headings, or the clock hasn't synced yet and there's no
-// heading to fall back on either.
-void NotesScreen::autoOpenToday() {
-    static const char* kFull[7]  = { "sunday", "monday", "tuesday", "wednesday",
-                                      "thursday", "friday", "saturday" };
-    static const char* kShort[7] = { "sun", "mon", "tue", "wed", "thu", "fri", "sat" };
-
-    int wday = -1;   // -1 = clock not synced / unknown - matching's just skipped
-    time_t now = time(nullptr);
-    if (now > 1600000000) {
-        struct tm tmNow;
-        localtime_r(&now, &tmNow);
-        wday = tmNow.tm_wday;   // 0=Sunday..6=Saturday
-    }
-
-    int firstHeading = -1;
-    int todayHeading  = -1;
+// Opens the very first heading on the page, if there is one - the
+// simplest, most predictable starting state (day-name matching against
+// "today" turned out to be more surprising than helpful: which day ends
+// up open depends on the exact wording of your headings and the device's
+// clock being synced, and whichever day happens to be both "today" and
+// last on the page just looks like a bug). Leaves everything closed if
+// the page has no headings at all.
+void NotesScreen::openFirstDay() {
     for (int i = 0; i < _count; i++) {
-        if (!_items[i].isHeading) continue;
-        if (firstHeading < 0) firstHeading = i;
-        if (wday >= 0) {
-            String txt = _items[i].text;
-            txt.toLowerCase();
-            if (txt.indexOf(kFull[wday]) >= 0 || txt.indexOf(kShort[wday]) >= 0) {
-                todayHeading = i;
-                break;
-            }
-        }
+        if (_items[i].isHeading) { _open[i] = true; return; }
     }
-
-    int toOpen = (todayHeading >= 0) ? todayHeading : firstHeading;
-    if (toOpen >= 0) _open[toOpen] = true;
 }
 
 // Counts the to_do children directly under one heading (up to the next
@@ -155,6 +128,7 @@ void NotesScreen::toggleDay(int headingIdx) {
     if (_sel < _scroll) _scroll = _sel;
     if (_sel >= _scroll + rows) _scroll = _sel - rows + 1;
     if (_scroll < 0) _scroll = 0;
+    _marqueeTick = 0;
     _needsRedraw = true;
 }
 
@@ -187,17 +161,28 @@ void NotesScreen::onConfigChanged() {
     _fetched   = false;   // update() refetches on the next tick
     _lastFetch = 0;
     _sel = 0; _scroll = 0;
+    _marqueeTick = 0;
     _needsRedraw = true;
 }
 
 void NotesScreen::update() {
-    if (!NotesSource::usable()) return;   // nothing configured to fetch
-    if (WiFi.status() != WL_CONNECTED) return;
+    if (NotesSource::usable() && WiFi.status() == WL_CONNECTED) {
+        bool stale = !_fetched
+                   || (_lastError != 0 && millis() - _lastFetch > 120000UL) // retry sooner after a failure
+                   || (millis() - _lastFetch > REFRESH_MS);
+        if (stale) doFetch();
+    }
 
-    bool stale = !_fetched
-               || (_lastError != 0 && millis() - _lastFetch > 120000UL) // retry sooner after a failure
-               || (millis() - _lastFetch > REFRESH_MS);
-    if (stale) doFetch();
+    // Paces the selected row's text scroll independently of any fetch -
+    // only runs once there's actually a list on screen to scroll.
+    if (_fetched && _visibleCount > 0) {
+        unsigned long now = millis();
+        if (now >= _marqueeNextTick) {
+            _marqueeNextTick = now + MARQUEE_TICK_MS;
+            _marqueeTick++;
+            _needsRedraw = true;
+        }
+    }
 }
 
 // ---- drawing ----
@@ -266,6 +251,47 @@ void NotesScreen::drawProgress() {
     if (fillW > 0) tft->fillRect(barX, barY, fillW, barH, t.accent2);
 }
 
+// Text to actually print for one row, given the full string and the pixel
+// width it has to fit in - see the header's doc comment for the animated
+// case's design. Shared by both the heading and the plain-row branches of
+// drawList() below.
+String NotesScreen::layoutRowText(const String &full, int maxW, bool animate) const {
+    if (tft->textWidth(full) <= maxW) return full;
+
+    if (!animate) {
+        String t = full;
+        while (t.length() > 1 && tft->textWidth(t) > maxW) t.remove(t.length() - 1);
+        return t;
+    }
+
+    // Find how far the window can slide before the tail end of the string
+    // fills maxW exactly (right-anchored) - that's the far end of the
+    // scroll. Trimming from the front of a probe copy is the same
+    // technique the non-animated branch uses trimming from the back.
+    String probe = full;
+    int maxStart = 0;
+    while (probe.length() > 1 && tft->textWidth(probe) > maxW) {
+        probe.remove(0, 1);
+        maxStart++;
+    }
+
+    int cycle = maxStart + MARQUEE_PAUSE_TICKS * 2;
+    int phase = (cycle > 0) ? (_marqueeTick % cycle) : 0;
+
+    int startChar;
+    if (phase < MARQUEE_PAUSE_TICKS) {
+        startChar = 0;                                   // pause at the beginning
+    } else if (phase < MARQUEE_PAUSE_TICKS + maxStart) {
+        startChar = phase - MARQUEE_PAUSE_TICKS;          // scrolling
+    } else {
+        startChar = maxStart;                             // pause at the end
+    }
+
+    String t = full.substring(startChar);
+    while (t.length() > 1 && tft->textWidth(t) > maxW) t.remove(t.length() - 1);
+    return t;
+}
+
 void NotesScreen::drawList() {
     const Theme &t = ThemeManager::current();
     const int W = tft->width();
@@ -327,8 +353,7 @@ void NotesScreen::drawList() {
             tft->setTextColor(sel ? t.selectFg : t.accent, bg);
             String text = n.text[0] ? n.text : "(empty)";
             if (grouped) text = String(_open[idx] ? "v " : "> ") + text;
-            while (text.length() > 1 && tft->textWidth(text) > maxW)
-                text.remove(text.length() - 1);
+            text = layoutRowText(text, maxW, sel);
             tft->setCursor(textX, y + (ROW_H - 2 - 16) / 2);
             tft->print(text);
             tft->fillRect(rowX, y + ROW_H - 3, rowW, 1, sel ? t.selectFg : t.rule);
@@ -355,8 +380,7 @@ void NotesScreen::drawList() {
         uint16_t textCol = (n.isTodo && n.checked) ? t.fgDim : fg;
         tft->setTextColor(textCol, bg);
         String text = n.text[0] ? n.text : "(empty)";
-        while (text.length() > 1 && tft->textWidth(text) > maxW)
-            text.remove(text.length() - 1);
+        text = layoutRowText(text, maxW, sel);
         tft->setCursor(textX, y + (ROW_H - 2 - 16) / 2);
         tft->print(text);
     }
@@ -376,6 +400,7 @@ void NotesScreen::onEncoderUp() {
     if (_visibleCount == 0) return;
     if (_sel > 0) _sel--;
     if (_sel < _scroll) _scroll = _sel;
+    _marqueeTick = 0;
     _needsRedraw = true;
 }
 
@@ -384,6 +409,7 @@ void NotesScreen::onEncoderDown() {
     int rows = visibleRows();
     if (_sel < _visibleCount - 1) _sel++;
     if (_sel >= _scroll + rows) _scroll = _sel - rows + 1;
+    _marqueeTick = 0;
     _needsRedraw = true;
 }
 

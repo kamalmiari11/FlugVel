@@ -485,7 +485,7 @@ button.act.ghost{background:transparent;color:var(--fg);border-color:var(--rule)
                 for (int i = 0; i < 4; i++) if (kNMaxV[i] == NotesSource::maxItems()) { nmi = i; break; }
                 optSelect(p, "nmax", "Items shown", "how many rows the screen keeps", kNMax, kNMaxV, 4, nmi);
                 optSwitch(p, "nchk", "Show checked items", "keep finished to-dos instead of dropping them", NotesSource::showChecked());
-                optSwitch(p, "ngrp", "Group notes by day", "collapse into day headings (like \"Monday\"), today opened automatically - turn the knob to move between rows, press to open/close a day or tick a to-do", NotesSource::groupByDay());
+                optSwitch(p, "ngrp", "Group notes by day", "collapse into day headings (like \"Monday\"), the first one opened automatically - turn the knob to move between rows, press to open/close a day or tick a to-do", NotesSource::groupByDay());
                 break;
             }
             default:

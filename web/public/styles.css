@@ -534,6 +534,21 @@ code, kbd {
   box-shadow: var(--shadow-sm);
 }
 .callout.danger { border-left-color: var(--req); }
+.template-box { position: relative; margin: 14px 0; }
+.template-box pre {
+  margin: 0;
+  padding: 16px 100px 16px 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+.template-box .copy-btn { position: absolute; top: 10px; right: 10px; min-width: 64px; }
 table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px; }
 th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--line); color: var(--ink); }
 th { color: var(--dim); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; background: var(--surface-2); }

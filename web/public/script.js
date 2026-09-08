@@ -97,3 +97,53 @@
     }, 110);
   });
 })();
+
+
+// Manual §3's Notion template has a "Copy" button next to it
+// (data-copy-target points at the <pre> holding the plain-text template) -
+// copies its exact text so it pastes into Notion as real blocks rather
+// than however the browser would render the styled page around it.
+(function () {
+  var buttons = document.querySelectorAll("[data-copy-target]");
+  if (!buttons.length) return;
+
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  buttons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var target = document.getElementById(btn.getAttribute("data-copy-target"));
+      if (!target) return;
+      var text = target.innerText || target.textContent;
+
+      function flash() {
+        var original = btn.textContent;
+        btn.textContent = "Copied!";
+        btn.disabled = true;
+        setTimeout(function () {
+          btn.textContent = original;
+          btn.disabled = false;
+        }, 1400);
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(flash, function () {
+          fallbackCopy(text);
+          flash();
+        });
+      } else {
+        fallbackCopy(text);
+        flash();
+      }
+    });
+  });
+})();

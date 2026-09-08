@@ -5,16 +5,18 @@
 // A short list pulled from one Notion page (see config/NotesSource.h for
 // how it's configured): to-do checkboxes, bullet and numbered list items,
 // paragraphs and headings, in the order they sit on the page. Turn the
-// encoder to scroll past MAX_ITEMS rows.
+// encoder to scroll past MAX_ITEMS rows; a selected row whose text doesn't
+// fit slowly scrolls through the whole thing instead of just sitting cut
+// off (see layoutRowText()).
 //
 // The KO button is context-sensitive, matching whatever's selected (see
 // getActionLegend()): on a to-do it ticks/unticks it - optimistically, and
 // written back to Notion in the background (setNotionTodoChecked()); with
 // NotesSource::groupByDay() on, a heading is a collapsible day section and
-// KO opens/closes it (see rebuildVisible()/toggleDay()), with only one day
-// open at a time and today's opened automatically on each fetch
-// (autoOpenToday()); anything else falls back to forcing an immediate
-// refresh rather than waiting for the next scheduled one.
+// KO opens/closes it (see rebuildVisible()/toggleDay()), with the first
+// heading on the page opened by default on each fetch (openFirstDay()) and
+// only one day open at a time; anything else falls back to forcing an
+// immediate refresh rather than waiting for the next scheduled one.
 class NotesScreen : public Screen {
 public:
     NotesScreen(TFT_eSPI* display);
@@ -73,6 +75,15 @@ private:
     unsigned long _lastFetch;
     bool _needsRedraw;
 
+    // Drives the selected-row text scroll in drawList()/layoutRowText() -
+    // a free-running counter, not tied to which row is selected, so
+    // switching selection needs no special-case bookkeeping beyond
+    // resetting it to 0 for a clean start (done wherever _sel changes).
+    static const unsigned long MARQUEE_TICK_MS = 300;   // ms per animation step
+    static const int MARQUEE_PAUSE_TICKS       = 4;     // pause at each end, in ticks
+    int _marqueeTick;
+    unsigned long _marqueeNextTick;
+
     int listTop() const { return _todoTotal > 0 ? LIST_TOP_PROGRESS : LIST_TOP; }
     int visibleRows() const;   // depends on listTop() and the panel's actual height
 
@@ -81,11 +92,21 @@ private:
     void drawList();
     void emptyState(const char* line1, const char* line2);
 
+    // Text to actually print for one row, given the full string and the
+    // pixel width it has to fit in: `full` unchanged if it already fits;
+    // otherwise, for `animate==false`, the plain from-the-end truncation
+    // every non-selected row gets (no ellipsis, just cut off); for
+    // `animate==true` (the selected row only), a window that starts at the
+    // beginning, pauses, scrolls one character at a time until the tail is
+    // reached, pauses there too, then jumps back to the start - paced by
+    // _marqueeTick, which update() advances on a timer.
+    String layoutRowText(const String &full, int maxW, bool animate) const;
+
     // Day-accordion + checkbox support. All operate on _items[] (which
     // always holds everything the last fetch returned, open or not) and
     // keep _visible[]/_sel/_scroll in sync with whatever they change.
     void rebuildVisible();
-    void autoOpenToday();                                   // sets one _open[] bit
+    void openFirstDay();                                    // opens the page's first heading, if any
     void dayTally(int headingIdx, int &total, int &checked) const;
     void toggleDay(int headingIdx);
     void toggleCheck(int idx);
