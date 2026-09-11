@@ -554,6 +554,78 @@ th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--li
 th { color: var(--dim); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; background: var(--surface-2); }
 tr:last-child td { border-bottom: none; }
 
+/* ============== Manual: search box ============== */
+.manual-search { margin: 0 0 14px; position: relative; }
+.manual-search input {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 13.5px;
+  padding: 9px 34px 9px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+}
+.manual-search input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(192,90,30,.15);
+}
+.manual-search .clear-btn {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  border: none; background: none; color: var(--dim); cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 4px 6px; display: none;
+}
+.manual-search input:not(:placeholder-shown) ~ .clear-btn { display: block; }
+.manual-search .no-results {
+  display: none; font-size: 12.5px; color: var(--dim); padding: 8px 2px 0;
+}
+.manual-search.no-match .no-results { display: block; }
+
+/* ============== Manual: collapsible §-sections (mobile only) ============== */
+.sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sec-head h2 { flex: 1; }
+.sec-head .caret {
+  display: none;
+  flex: none;
+  font-family: var(--mono);
+  color: var(--accent-ink);
+  font-size: 12px;
+  transition: transform .15s ease;
+  margin-top: 2px;
+}
+@media (max-width: 899px) {
+  .sec-head .caret { display: inline-block; }
+  .sec-head { cursor: pointer; }
+  .manual-section.collapsed .caret { transform: rotate(-90deg); }
+  .manual-section.collapsed .sec-body { display: none; }
+}
+
+/* ============== Manual: reference tables -> stacked cards on mobile ============== */
+@media (max-width: 560px) {
+  .ref-table, .ref-table tbody, .ref-table tr, .ref-table td { display: block; width: 100%; }
+  .ref-table tr.hdr-row { display: none; }
+  .ref-table tr {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    margin: 0 0 10px;
+    padding: 10px 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  .ref-table tr:last-child { margin-bottom: 0; }
+  .ref-table td { border-bottom: none; padding: 3px 0; }
+  .ref-table td:first-child {
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--accent-ink);
+    font-size: 13px;
+    letter-spacing: .02em;
+    padding-top: 0;
+  }
+  .ref-table td:last-child { padding-bottom: 0; }
+}
+
 /* ============== Auth pages ============== */
 .auth-page {
   min-height: 100%;

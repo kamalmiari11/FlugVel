@@ -25,6 +25,11 @@
 
 <div class="wrap manual-layout">
   <div class="toc">
+    <div class="manual-search" id="manualSearchWrap">
+      <input type="text" id="manualSearch" placeholder="Search the manual…" aria-label="Search the manual">
+      <button class="clear-btn" id="manualSearchClear" type="button" aria-label="Clear search">&times;</button>
+      <p class="no-results" id="manualNoResults">No sections match that.</p>
+    </div>
     <a href="#setup">1. First-time setup</a>
     <a href="#controls">2. Controls</a>
     <a href="#screens">3. Screens</a>
@@ -40,7 +45,8 @@
     <p class="sub" style="margin-bottom:0;">Everything you need to set up and use a FlugVel device. Covers firmware v1.0.13.</p>
 
     <div class="manual-section">
-      <h2 id="setup">1. First-time setup</h2>
+      <div class="sec-head"><h2 id="setup">1. First-time setup</h2><span class="caret">&#9662;</span></div>
+      <div class="sec-body">
       <p>On first boot (or after a factory reset), FlugVel starts its own Wi-Fi setup mode and shows a QR code on screen.</p>
 
       <div class="step">
@@ -65,23 +71,27 @@
       </div>
 
       <div class="callout">All of this only happens once. FlugVel remembers your Wi-Fi and settings across restarts and power cuts.</div>
+      </div>
     </div>
 
     <div class="manual-section">
-      <h2 id="controls">2. Controls</h2>
+      <div class="sec-head"><h2 id="controls">2. Controls</h2><span class="caret">&#9662;</span></div>
+      <div class="sec-body">
       <p>FlugVel has exactly two physical controls, plus a persistent bottom strip that always shows what they currently do:</p>
-      <table>
-        <tr><th>Control</th><th>What it does</th></tr>
+      <table class="ref-table">
+        <tr class="hdr-row"><th>Control</th><th>What it does</th></tr>
         <tr><td>Turn the knob</td><td>Moves within the current screen (picks a day on Weather, scrolls the Calendar agenda, adjusts a value in Settings).</td></tr>
         <tr><td>Click the knob</td><td>Jumps to the next screen in your cycle order, wrapping back around. Settings always comes last and can't be hidden or reordered.</td></tr>
         <tr><td>The other button</td><td>Confirms/acts within the current screen — starts the timer, flaps in Flappy Plane, opens a menu item, expands a calendar entry. Screen-specific, see below.</td></tr>
         <tr><td>Action legend</td><td>The strip along the bottom of the screen — not a control itself, but tells you exactly what the knob and button do right now on whatever screen and state you're in. Can be turned off in Customise if you'd rather have the extra screen space.</td></tr>
       </table>
       <p>Left-handed, or wired up rotated? The Customise tab has a <strong>left-handed mode</strong> (flips the whole layout 180° and reverses the encoder to match) and a separate <strong>knob reversed</strong> option for when the encoder itself is just wired backwards.</p>
+      </div>
     </div>
 
     <div class="manual-section">
-      <h2 id="screens">3. Screens</h2>
+      <div class="sec-head"><h2 id="screens">3. Screens</h2><span class="caret">&#9662;</span></div>
+      <div class="sec-body">
       <p>Default order is Plane → Weather → Games → Focus → Calendar → Notes → Settings, but you can reorder or hide any of these except Settings from the Customise tab — so if you never play the games, they don't have to be in your cycle at all.</p>
 
       <h3>Plane</h3>
@@ -105,8 +115,8 @@
       <p>Turn on <strong>Group notes by day</strong> in Customise and every heading becomes a collapsible day section instead of a plain divider: the first heading on the page opens itself automatically, everything else stays closed with a small done-count next to its name (like "Tuesday (2/3)"), and only one day is ever open at a time — opening another closes the one before it. Anything written above the very first heading always shows, whether or not it's grouped under a day.</p>
 
       <p>Only some Notion block types are read, and only the ones sitting directly on the page — nothing nested inside a toggle, column or another block, since the device only ever asks Notion for the page's immediate children. Keep the page flat and it shows up exactly as built:</p>
-      <table>
-        <tr><th>In Notion</th><th>On the device</th></tr>
+      <table class="ref-table">
+        <tr class="hdr-row"><th>In Notion</th><th>On the device</th></tr>
         <tr><td>Heading 1 / 2 / 3</td><td>A section divider — or, with <strong>Group notes by day</strong> on, a collapsible day section.</td></tr>
         <tr><td>To-do</td><td>A checkbox row; ticked when it's checked in Notion or right on the device.</td></tr>
         <tr><td>Bulleted list, numbered list, plain paragraph</td><td>A row with a small dot marker. All three look identical — numbers themselves aren't shown, and none of them count toward the to-do total.</td></tr>
@@ -129,15 +139,17 @@
 
       <h3>Settings</h3>
       <p>Always last in the cycle, and the one screen that can't be hidden — it's covered in full in <a href="#settings">§5</a>. It's mostly device info, a quick on-device theme picker, and the doorway to updates/restart/reset; the deeper customisation lives in the setup console instead (<a href="#console">§4</a>).</p>
+      </div>
     </div>
 
     <div class="manual-section">
-      <h2 id="console">4. The setup console</h2>
+      <div class="sec-head"><h2 id="console">4. The setup console</h2><span class="caret">&#9662;</span></div>
+      <div class="sec-body">
       <p>Beyond the first-time setup, FlugVel keeps its configuration page running as long as it's on your Wi-Fi — you don't need the knob for most settings at all. From <strong>Settings → Configure on phone</strong> on the device, it shows a QR code and an address; scan it or type the address into any browser on the same network, and it opens straight to the Customise tab.</p>
       <p>If typing it by hand, use the friendly name shown on the device (something like <code>flugvel-a1b2.local</code>) — if your phone or router doesn't resolve <code>.local</code> addresses, use the numeric IP address shown instead (also on the Settings → Device Info screen).</p>
       <p>The console has three tabs:</p>
-      <table>
-        <tr><th>Tab</th><th>What's there</th></tr>
+      <table class="ref-table">
+        <tr class="hdr-row"><th>Tab</th><th>What's there</th></tr>
         <tr><td><span class="tag">01</span> Wi-Fi</td><td>Change which network the device connects to. Only really needed again if you move it or change routers.</td></tr>
         <tr><td><span class="tag">02</span> Location</td><td>City/coordinates, timezone, screen-facing direction — same fields as first-time setup.</td></tr>
         <tr><td><span class="tag">03</span> Customise</td><td>Everything else: theme, brightness, date/time format, units, left-handed mode, action legend on/off, screen order and visibility, startup behavior (boot to home vs. resume the last screen you were on), and every per-screen option described in <a href="#screens">§3</a> — plus your calendar feeds.</td></tr>
@@ -191,12 +203,14 @@
         <div class="step-num">Step 5</div>
         <p style="margin:6px 0 0;">Set <strong>Look ahead</strong> (how far into the future events are listed) and <strong>Keep at most</strong> (a cap across every feed combined) to taste, and save.</p>
       </div>
+      </div>
     </div>
 
     <div class="manual-section">
-      <h2 id="settings">5. On-device Settings</h2>
-      <table>
-        <tr><th>Option</th><th>What it's for</th></tr>
+      <div class="sec-head"><h2 id="settings">5. On-device Settings</h2><span class="caret">&#9662;</span></div>
+      <div class="sec-body">
+      <table class="ref-table">
+        <tr class="hdr-row"><th>Option</th><th>What it's for</th></tr>
         <tr><td>Device Info</td><td>Wi-Fi status, IP address and uptime — plus the QR code/address for the setup console.</td></tr>
         <tr><td>Theme</td><td>A quick picker for the four built-in color themes (MonoDotMatrix, AmberTerminal, GreenPhosphor, IceBlue) — turn the knob to preview each live before confirming.</td></tr>
         <tr><td>Configure on phone</td><td>Shows the QR code/address to open the full setup console on your phone (<a href="#console">§4</a>) rather than clicking through everything with the knob.</td></tr>
@@ -204,10 +218,12 @@
         <tr><td>Restart</td><td>Reboots the device.</td></tr>
         <tr><td>Factory Reset</td><td>Same effect as the button-hold gesture below, reachable from the menu instead.</td></tr>
       </table>
+      </div>
     </div>
 
     <div class="manual-section">
-      <h2 id="updates">6. Firmware updates</h2>
+      <div class="sec-head"><h2 id="updates">6. Firmware updates</h2><span class="caret">&#9662;</span></div>
+      <div class="sec-body">
       <p>FlugVel can update its own firmware over Wi-Fi. It checks a small version file online and compares it to what's currently installed.</p>
       <ul>
         <li>Updates are checked automatically after connecting to Wi-Fi at boot, and any time you select <strong>Update</strong> from the Settings menu.</li>
@@ -215,21 +231,25 @@
         <li>Downloading and flashing takes a minute or two — a progress bar is shown. The device reboots on its own once the update finishes successfully.</li>
         <li>If an update fails partway through, the device simply keeps running its current firmware — nothing is lost.</li>
       </ul>
+      </div>
     </div>
 
     <div class="manual-section">
-      <h2 id="reset">7. Factory reset</h2>
+      <div class="sec-head"><h2 id="reset">7. Factory reset</h2><span class="caret">&#9662;</span></div>
+      <div class="sec-body">
       <p>To wipe saved Wi-Fi credentials and settings and start over:</p>
       <div class="step">
         <p style="margin:0;">Press and hold <strong>both</strong> buttons (the knob's click button and the other button) together for <strong>15 seconds</strong>. The screen will show "Factory Reset..." and the device will restart into first-time setup mode. The same thing is available as a menu item under Settings → Factory Reset if you'd rather not hold both buttons.</p>
       </div>
       <div class="callout danger">This clears everything — Wi-Fi password, location, theme, screen order, calendar feeds and every other preference. You'll need to go through first-time setup again afterward.</div>
+      </div>
     </div>
 
     <div class="manual-section">
-      <h2 id="troubleshooting">8. Troubleshooting</h2>
-      <table>
-        <tr><th>Problem</th><th>Try this</th></tr>
+      <div class="sec-head"><h2 id="troubleshooting">8. Troubleshooting</h2><span class="caret">&#9662;</span></div>
+      <div class="sec-body">
+      <table class="ref-table">
+        <tr class="hdr-row"><th>Problem</th><th>Try this</th></tr>
         <tr><td>No QR code / setup screen on first boot</td><td>Power-cycle the device. If it still doesn't appear, it may already have Wi-Fi credentials saved — try a factory reset (above).</td></tr>
         <tr><td>"Failed to connect" after entering Wi-Fi password</td><td>Double-check the password and that you selected the right network, then try again — the setup page stays open for another attempt.</td></tr>
         <tr><td>No planes ever show up</td><td>Check your location was set correctly (Settings → Device Info or the console's Location tab), and that the minimum-altitude filter in Customise isn't set higher than you expect.</td></tr>
@@ -240,6 +260,7 @@
         <tr><td>Can't reach the setup console by typing the .local address</td><td>Some phones/routers don't resolve <code>.local</code> names. Use the numeric IP address shown on Settings → Device Info instead.</td></tr>
         <tr><td>Stuck on an old firmware version</td><td>Go to Settings → Update to force a manual check rather than waiting for the automatic one at boot.</td></tr>
       </table>
+      </div>
     </div>
   </div>
 </div>

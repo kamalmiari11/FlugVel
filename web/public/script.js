@@ -173,3 +173,133 @@
     });
   });
 })();
+
+// Manual page: collapsible §-sections on mobile (accordion), a scroll-spy
+// that highlights the current section in the sidebar TOC on desktop, and a
+// live search box that filters sections by their text. All three are no-ops
+// anywhere but manual.html, since they bail out immediately if the page has
+// no .manual-section elements.
+(function () {
+  var deviceScreen = document.getElementById("deviceScreen");
+  var sections = document.querySelectorAll(".manual-section");
+  var tocLinks = document.querySelectorAll(".toc a[href^='#']");
+  if (!sections.length) return;
+
+  var mq = window.matchMedia("(max-width: 899px)");
+  var targetId = location.hash ? location.hash.slice(1) : null;
+
+  var entries = [];
+  sections.forEach(function (sec) {
+    var head = sec.querySelector(".sec-head");
+    var heading = sec.querySelector("h2[id]");
+    if (!head || !heading) return;
+    var isTarget = targetId && heading.id === targetId;
+    if (!isTarget) sec.classList.add("collapsed");
+
+    function toggle() {
+      if (!mq.matches) return; // accordion only applies on mobile widths
+      sec.classList.toggle("collapsed");
+      syncOne();
+    }
+    function syncOne() {
+      if (mq.matches) {
+        head.setAttribute("role", "button");
+        head.setAttribute("tabindex", "0");
+        head.setAttribute("aria-expanded", sec.classList.contains("collapsed") ? "false" : "true");
+      } else {
+        head.removeAttribute("role");
+        head.removeAttribute("tabindex");
+        head.removeAttribute("aria-expanded");
+      }
+    }
+    head.addEventListener("click", toggle);
+    head.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+    });
+    entries.push({ sec: sec, head: head, heading: heading, sync: syncOne });
+  });
+
+  function syncAllA11y() { entries.forEach(function (e) { e.sync(); }); }
+  syncAllA11y();
+  mq.addEventListener("change", syncAllA11y);
+
+  // Any same-page hash navigation (a TOC link, or an in-text "see §4"
+  // cross-reference) expands the section it points at, instead of landing
+  // you on a visible heading with hidden content underneath it.
+  window.addEventListener("hashchange", function () {
+    var id = location.hash.slice(1);
+    var match = entries.filter(function (e) { return e.heading.id === id; })[0];
+    if (match) { match.sec.classList.remove("collapsed"); match.sync(); }
+  });
+
+  // ---- scroll-spy: highlight the current section in the sidebar TOC ----
+  // Deliberately not IntersectionObserver's usual "band near the top"
+  // technique: with a section as long as §3 Screens, that only lights up
+  // the TOC entry for a brief moment as the heading passes through the
+  // band, then goes dark for the rest of the time you're actually reading
+  // it. Instead: the "current" section is whichever heading is the last
+  // one to have scrolled up past the anchor line - it stays current for
+  // the section's whole length, and only changes once the next heading
+  // reaches that same line.
+  var updateActive = function () {}; // reassigned below if scroll-spy is active; runFilter() calls it either way
+  if (tocLinks.length && deviceScreen) {
+    var linkFor = {};
+    tocLinks.forEach(function (a) { linkFor[a.getAttribute("href").slice(1)] = a; });
+    var ANCHOR = 90; // px from the top of #deviceScreen
+    var ticking = false;
+
+    updateActive = function () {
+      ticking = false;
+      var containerTop = deviceScreen.getBoundingClientRect().top;
+      var currentId = null;
+      entries.forEach(function (e) {
+        if (e.sec.hidden) return; // skip anything the search filter hid
+        var top = e.heading.getBoundingClientRect().top - containerTop;
+        if (top <= ANCHOR) currentId = e.heading.id;
+      });
+      tocLinks.forEach(function (a) { a.classList.remove("active"); });
+      if (currentId && linkFor[currentId]) linkFor[currentId].classList.add("active");
+    };
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(updateActive);
+    }
+    deviceScreen.addEventListener("scroll", onScroll, { passive: true });
+    updateActive();
+  }
+
+  // ---- live search/filter ----
+  var input = document.getElementById("manualSearch");
+  var clearBtn = document.getElementById("manualSearchClear");
+  var wrap = document.getElementById("manualSearchWrap");
+  if (input) {
+    var linkForId = {};
+    tocLinks.forEach(function (a) { linkForId[a.getAttribute("href").slice(1)] = a; });
+
+    function runFilter() {
+      var q = input.value.trim().toLowerCase();
+      var anyMatch = false;
+      entries.forEach(function (e) {
+        var match = !q || e.sec.textContent.toLowerCase().indexOf(q) !== -1;
+        e.sec.hidden = !match;
+        var link = linkForId[e.heading.id];
+        if (link) link.style.display = match ? "" : "none";
+        if (match) {
+          anyMatch = true;
+          if (q) { e.sec.classList.remove("collapsed"); e.sync(); }
+        }
+      });
+      wrap.classList.toggle("no-match", !!q && !anyMatch);
+      updateActive();
+    }
+    input.addEventListener("input", runFilter);
+    if (clearBtn) {
+      clearBtn.addEventListener("click", function () {
+        input.value = "";
+        runFilter();
+        input.focus();
+      });
+    }
+  }
+})();
