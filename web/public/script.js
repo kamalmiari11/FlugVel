@@ -277,20 +277,33 @@
     var linkForId = {};
     tocLinks.forEach(function (a) { linkForId[a.getAttribute("href").slice(1)] = a; });
 
+    // A plain lowercased substring match means "wifi" doesn't find "Wi-Fi",
+    // "on device" doesn't find "on-device", and so on - anything the page
+    // spells with a hyphen or a line break the manual's own words don't
+    // match how someone would actually type them. Stripping hyphens/dashes
+    // and whitespace from both sides before comparing fixes that without
+    // losing real substring matching (multi-word queries like "factory
+    // reset" still work, just insensitive to exactly how they're spaced).
+    function normalize(s) {
+      return s.toLowerCase().replace(/[-‐-―\s]+/g, "");
+    }
+    entries.forEach(function (e) { e.searchText = normalize(e.sec.textContent); });
+
     function runFilter() {
-      var q = input.value.trim().toLowerCase();
+      var raw = input.value.trim();
+      var q = normalize(raw);
       var anyMatch = false;
       entries.forEach(function (e) {
-        var match = !q || e.sec.textContent.toLowerCase().indexOf(q) !== -1;
+        var match = !q || e.searchText.indexOf(q) !== -1;
         e.sec.hidden = !match;
         var link = linkForId[e.heading.id];
         if (link) link.style.display = match ? "" : "none";
         if (match) {
           anyMatch = true;
-          if (q) { e.sec.classList.remove("collapsed"); e.sync(); }
+          if (raw) { e.sec.classList.remove("collapsed"); e.sync(); }
         }
       });
-      wrap.classList.toggle("no-match", !!q && !anyMatch);
+      wrap.classList.toggle("no-match", !!raw && !anyMatch);
       updateActive();
     }
     input.addEventListener("input", runFilter);
