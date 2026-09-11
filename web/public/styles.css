@@ -626,6 +626,50 @@ tr:last-child td { border-bottom: none; }
   .ref-table td:last-child { padding-bottom: 0; }
 }
 
+/* ============== Landing page: email signup ============== */
+.updates-signup { padding-bottom: 64px; }
+.signup-form {
+  display: flex;
+  gap: 10px;
+  max-width: 420px;
+  margin: 24px auto 0;
+}
+.signup-form input[type="email"] {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-family: var(--sans);
+  font-size: 14.5px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+}
+.signup-form input[type="email"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(192, 90, 30, .15);
+}
+.signup-form .act[disabled] {
+  opacity: .65;
+  cursor: default;
+  transform: none;
+  box-shadow: var(--shadow-sm);
+}
+.signup-status {
+  margin: 12px 0 0;
+  min-height: 1.3em;
+  font-size: 13px;
+  color: var(--dim);
+  text-align: center;
+}
+.signup-status.error { color: var(--req); }
+.signup-status.success { color: var(--accent-ink); }
+@media (max-width: 560px) {
+  .signup-form { flex-direction: column; }
+}
+
 /* ============== Auth pages ============== */
 .auth-page {
   min-height: 100%;

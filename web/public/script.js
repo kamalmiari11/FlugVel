@@ -400,3 +400,64 @@
     }
   }
 })();
+
+// Landing page: "Get updates" email signup (POST /api/subscribe). Requires
+// JS - there's no non-JS fallback, same as the copy button and the manual
+// search above, since a plain form submit would POST url-encoded data and
+// the endpoint expects JSON.
+(function () {
+  var form = document.getElementById("signupForm");
+  if (!form) return;
+  var input = document.getElementById("signupEmail");
+  var status = document.getElementById("signupStatus");
+  var button = form.querySelector("button[type=submit]");
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function setStatus(text, kind) {
+    status.textContent = text;
+    status.className = "signup-status" + (kind ? " " + kind : "");
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = input.value.trim();
+
+    if (!email || !EMAIL_RE.test(email)) {
+      setStatus("Enter a valid email address.", "error");
+      input.focus();
+      return;
+    }
+
+    var original = button.textContent;
+    button.disabled = true;
+    button.textContent = "Sending…";
+    setStatus("", "");
+
+    fetch("/api/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email }),
+    })
+      .then(function (res) {
+        return res
+          .json()
+          .catch(function () { return {}; })
+          .then(function (data) { return { ok: res.ok, data: data }; });
+      })
+      .then(function (result) {
+        if (result.ok) {
+          setStatus("You're on the list.", "success");
+          input.value = "";
+        } else {
+          setStatus((result.data && result.data.error) || "Something went wrong – try again in a bit.", "error");
+        }
+      })
+      .catch(function () {
+        setStatus("Couldn't reach the server – check your connection and try again.", "error");
+      })
+      .then(function () {
+        button.disabled = false;
+        button.textContent = original;
+      });
+  });
+})();

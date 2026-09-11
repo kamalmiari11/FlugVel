@@ -13,3 +13,13 @@ CREATE TABLE IF NOT EXISTS devices (
   pending_command TEXT,                     -- set by POST /api/devices/:id/command (e.g. 'factory_reset'); handed to the device on its next check-in, then cleared.
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Emails collected from the "Get updates" signup form on the landing page
+-- (POST /api/subscribe). UNIQUE on email so a repeat signup from the same
+-- address is just a no-op (INSERT OR IGNORE), not a duplicate row or an
+-- error shown to the visitor.
+CREATE TABLE IF NOT EXISTS subscribers (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
