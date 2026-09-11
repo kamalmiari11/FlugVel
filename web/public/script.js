@@ -96,6 +96,52 @@
       window.location.href = href;
     }, 110);
   });
+
+  // The knob turned scrolling into a visual - now it works the other way
+  // too: grab it (mouse or touch, via Pointer Events so both paths share
+  // one code path) and dragging up/down actually scrolls the screen.
+  // That drives #deviceScreen's own scrollTop, which is exactly what the
+  // scroll listener above is already watching, so the mark keeps rotating
+  // in sync for free - no separate rotation logic to keep in step.
+  var knob = mark && mark.parentElement;
+  if (knob && window.PointerEvent) {
+    var dragId = null;
+    var dragLastY = 0;
+
+    knob.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      dragId = e.pointerId;
+      dragLastY = e.clientY;
+      knob.classList.add("dragging");
+      try {
+        knob.setPointerCapture(dragId);
+      } catch (err) {
+        /* ignore */
+      }
+      e.preventDefault();
+    });
+
+    knob.addEventListener("pointermove", function (e) {
+      if (dragId === null || e.pointerId !== dragId) return;
+      var delta = e.clientY - dragLastY;
+      if (delta === 0) return;
+      dragLastY = e.clientY;
+      screen.scrollTop += delta;
+    });
+
+    function stopDrag(e) {
+      if (dragId === null || (e && e.pointerId !== dragId)) return;
+      try {
+        knob.releasePointerCapture(dragId);
+      } catch (err) {
+        /* ignore */
+      }
+      dragId = null;
+      knob.classList.remove("dragging");
+    }
+    knob.addEventListener("pointerup", stopDrag);
+    knob.addEventListener("pointercancel", stopDrag);
+  }
 })();
 
 
@@ -409,6 +455,7 @@
   var form = document.getElementById("signupForm");
   if (!form) return;
   var input = document.getElementById("signupEmail");
+  var honeypot = document.getElementById("signupCompany");
   var status = document.getElementById("signupStatus");
   var button = form.querySelector("button[type=submit]");
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -436,7 +483,7 @@
     fetch("/api/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email }),
+      body: JSON.stringify({ email: email, company: honeypot ? honeypot.value : "" }),
     })
       .then(function (res) {
         return res

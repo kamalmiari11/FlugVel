@@ -15,7 +15,13 @@
   --surface: #faf9f1;
   --surface-2: #f1efe0;
   --ink: #23271d;
-  --dim: #5c6249;
+  /* Darkened from the original #5c6249 - that value only hit 3.95:1 against
+     --bg and 3.58:1 against --bg-alt, both below WCAG AA's 4.5:1 for body
+     text, and --dim is used all over the site (subtitles, descriptions).
+     This value clears 4.5:1 against every background it's actually used on
+     (5.35:1 on --bg, 4.85:1 on --bg-alt, 8.17:1 on --surface) while staying
+     the same olive hue, just a bit darker. */
+  --dim: #494e3a;
   --line: rgba(35, 39, 29, 0.14);
   --line-strong: #8a9078;
   --accent: #c05a1e;
@@ -99,6 +105,7 @@ label, .n, .caption, .step-num, th { font-family: var(--mono); }
 @media (max-width: 560px) {
   .masthead-bar .wrap { flex-direction: column; gap: 10px; padding: 14px 20px; }
   .bar-actions { position: static; transform: none; }
+  .tab { padding: 12px 4px; }
 }
 
 /* ============== Buttons ============== */
@@ -178,6 +185,7 @@ label, .n, .caption, .step-num, th { font-family: var(--mono); }
 .eyebrow {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   color: var(--dim);
   font-size: 11.5px;
@@ -277,7 +285,22 @@ body {
     inset 0 -12px 24px rgba(0,0,0,.78),
     0 3px 0 rgba(0,0,0,.55),
     0 12px 26px rgba(0,0,0,.55);
+  /* It's a real control now, not just decoration lit up by page scroll -
+     drag it (mouse or touch) to scroll the screen. touch-action:none
+     stops the browser's own scroll/zoom gesture from fighting the drag. */
+  cursor: grab;
+  touch-action: none;
 }
+.encoder.dragging {
+  cursor: grabbing;
+  box-shadow:
+    0 0 0 4px rgba(255,255,255,.08),
+    inset 0 5px 13px rgba(255,255,255,.16),
+    inset 0 -12px 24px rgba(0,0,0,.78),
+    0 3px 0 rgba(0,0,0,.55),
+    0 12px 26px rgba(0,0,0,.55);
+}
+.encoder.dragging .mark { transition: none; }
 .encoder::after {
   content: ""; position: absolute; inset: 20px; border-radius: 50%;
   background: radial-gradient(circle at 34% 26%, #4a4a4a, #333 34%, #0d0d0d 76%);
@@ -419,6 +442,8 @@ footer {
 }
 footer .wrap { display: flex; align-items: center; justify-content: center; gap: 10px; }
 footer .brand-title { font-size: 11px; }
+footer .footer-link { color: var(--dim); text-decoration: underline; text-underline-offset: 2px; }
+footer .footer-link:hover { color: var(--accent-ink); }
 
 /* ============== Form controls ============== */
 fieldset {
@@ -488,6 +513,11 @@ input:focus, select:focus, textarea:focus {
 }
 .toc a:hover, .toc a.active { color: var(--accent-ink); border-left-color: var(--accent); text-decoration: none; }
 .manual h1 { font-size: 34px; letter-spacing: -0.02em; }
+/* The manual/privacy intro paragraph reuses .sub (built for the centered
+   hero), whose max-width:46ch + margin:0 auto centers it as a narrow
+   column instead of flowing full-width under the h1. Override for any
+   .sub that's a direct child of .manual. */
+.manual > .sub { max-width: none; margin-left: 0; margin-right: 0; }
 .manual h2 { margin: 0 0 6px; scroll-margin-top: 78px; font-size: 24px; }
 section.manual-intro { padding-bottom: 0; }
 .manual h2.first { margin-top: 0; }
@@ -668,6 +698,17 @@ tr:last-child td { border-bottom: none; }
 .signup-status.success { color: var(--accent-ink); }
 @media (max-width: 560px) {
   .signup-form { flex-direction: column; }
+}
+/* Honeypot field (see index.html's #signupCompany) - taken out of flow so
+   it doesn't affect the form's flex layout, and off-screen rather than
+   display:none since some bots skip filling fields hidden that way. */
+.hp-field {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ============== Auth pages ============== */

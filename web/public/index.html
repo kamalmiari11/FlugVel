@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FlugVel — a knob that watches the sky</title>
 <meta name="description" content="FlugVel: a homemade desk gadget for flights, weather, your calendar, a focus timer, and two working games. Runs on one knob.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="canonical" href="https://flugvel.com/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://flugvel.com/">
+<meta property="og:title" content="FlugVel — a knob that watches the sky">
+<meta property="og:description" content="A homemade desk gadget for flights, weather, your calendar, a focus timer, and two working games. Runs on one knob.">
+<meta property="og:image" content="https://flugvel.com/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FlugVel — a knob that watches the sky">
+<meta name="twitter:description" content="A homemade desk gadget for flights, weather, your calendar, a focus timer, and two working games. Runs on one knob.">
+<meta name="twitter:image" content="https://flugvel.com/og-image.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="styles.css">
@@ -35,7 +48,7 @@
           </div>
         </div>
         <div class="hero-media">
-          <video class="hero-video" src="device-hero.mp4" poster="device-hero-poster.jpg" autoplay muted loop playsinline></video>
+          <video class="hero-video" src="device-hero.mp4" poster="device-hero-poster.jpg" autoplay muted loop playsinline aria-label="Looping video of the FlugVel device, a small box with a TFT screen and a knob on its front panel"></video>
         </div>
       </div>
     </div>
@@ -173,6 +186,11 @@
         </div>
         <form class="signup-form" id="signupForm">
           <input type="email" id="signupEmail" name="email" placeholder="you@example.com" autocomplete="email" aria-label="Email address" required>
+          <!-- Honeypot: real visitors never see this (off-screen + hidden
+               from assistive tech), so a filled-in value means a bot -
+               see /api/subscribe. Not "company" as a visible field, just
+               a name bots commonly auto-fill. -->
+          <input type="text" name="company" id="signupCompany" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
           <button class="act" type="submit">Notify me</button>
         </form>
         <p class="signup-status" id="signupStatus" role="status" aria-live="polite"></p>
@@ -182,6 +200,7 @@
     <footer>
       <div class="wrap">
         <span>FlugVel — a personal project.</span>
+        <a href="privacy.html" class="footer-link">Privacy policy</a>
       </div>
     </footer>
 
