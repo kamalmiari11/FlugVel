@@ -26,6 +26,15 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export async function onRequestPost(context) {
   const { request, env } = context;
 
+  // TEMPORARY, remove once the Resend integration is confirmed working:
+  // ?debug=1 adds a `resend` field to the response describing what
+  // happened on the Resend side - never the API key or email content,
+  // just whether it was configured, attempted, and what Resend said back.
+  // Gated behind a query param rather than always-on so ordinary visitors
+  // never see it.
+  const debug = new URL(request.url).searchParams.get("debug") === "1";
+  const debugInfo = { hasKey: false, attempted: false, resendOk: null, status: null, error: null };
+
   let body;
   try {
     body = await request.json();
@@ -50,9 +59,12 @@ export async function onRequestPost(context) {
      VALUES (?, ?, datetime('now'))`
   ).bind(crypto.randomUUID(), email).run();
 
+  debugInfo.hasKey = !!env.RESEND_API_KEY;
+
   if (env.RESEND_API_KEY) {
+    debugInfo.attempted = true;
     try {
-      await fetch("https://api.resend.com/emails", {
+      const resendRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${env.RESEND_API_KEY}`,
@@ -75,11 +87,21 @@ export async function onRequestPost(context) {
             "this email and I'll remove you.",
         }),
       });
-    } catch {
-      // Best-effort - see the function-level comment above. The
-      // subscriber is already saved in D1 either way.
+      debugInfo.resendOk = resendRes.ok;
+      debugInfo.status = resendRes.status;
+      if (!resendRes.ok) {
+        // Resend's error bodies are small JSON objects like
+        // {"message": "...", "name": "..."} - safe to surface in debug
+        // mode, no secrets in there.
+        debugInfo.error = await resendRes.text().catch(() => null);
+      }
+    } catch (err) {
+      // Best-effort in normal operation - see the function-level comment
+      // above, the subscriber is already saved in D1 either way. In debug
+      // mode, surface what actually went wrong instead of swallowing it.
+      debugInfo.error = String(err && err.message ? err.message : err);
     }
   }
 
-  return json({ ok: true });
+  return json(debug ? { ok: true, resend: debugInfo } : { ok: true });
 }
