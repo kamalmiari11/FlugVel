@@ -446,7 +446,11 @@
       })
       .then(function (result) {
         if (result.ok) {
-          setStatus("You're on the list.", "success");
+          if (result.data && result.data.alreadySubscribed) {
+            setStatus("You're already on the list — appreciate the enthusiasm.", "success");
+          } else {
+            setStatus("You're on the list.", "success");
+          }
           input.value = "";
         } else {
           setStatus((result.data && result.data.error) || "Something went wrong – try again in a bit.", "error");

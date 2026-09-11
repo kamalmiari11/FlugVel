@@ -48,14 +48,18 @@ export async function onRequestPost(context) {
   }
 
   // INSERT OR IGNORE: signing up twice - or an address already on the
-  // list - is a quiet no-op. Deliberately doesn't reveal to the caller
-  // whether that email was already subscribed.
-  await env.DB.prepare(
+  // list - is a no-op rather than a UNIQUE-constraint error. D1 still
+  // reports whether a row actually got inserted via meta.changes (0 means
+  // the email was already there), which is how we know whether to skip the
+  // welcome email and tell the visitor they're already subscribed.
+  const insertResult = await env.DB.prepare(
     `INSERT OR IGNORE INTO subscribers (id, email, created_at)
      VALUES (?, ?, datetime('now'))`
   ).bind(crypto.randomUUID(), email).run();
 
-  if (env.RESEND_API_KEY) {
+  const alreadySubscribed = !(insertResult.meta && insertResult.meta.changes > 0);
+
+  if (!alreadySubscribed && env.RESEND_API_KEY) {
     try {
       await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -77,5 +81,5 @@ export async function onRequestPost(context) {
     }
   }
 
-  return json({ ok: true });
+  return json({ ok: true, alreadySubscribed });
 }
