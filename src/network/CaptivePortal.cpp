@@ -437,13 +437,11 @@ void CaptivePortal::setupRoutes()
     // run, when there is no connection yet.
     server.on("/config", HTTP_GET, [this]() {
         if (guardWithPin()) return;
-        server.sendHeader("Cache-Control", "no-store");
         server.send(200, "text/html", configPageHtml(false));
     });
     server.on("/config", HTTP_POST, [this]() {
         if (guardWithPin()) return;
         applyConfigPost();
-        server.sendHeader("Cache-Control", "no-store");
         server.send(200, "text/html", configPageHtml(true));
     });
 
@@ -489,7 +487,6 @@ void CaptivePortal::setupRoutes()
 
     server.on("/", [this]() {
         if (guardWithPin()) return;
-        server.sendHeader("Cache-Control", "no-store");
         server.send(200, "text/html", configPageHtml(false));
     });
 
@@ -786,8 +783,7 @@ void CaptivePortal::applyConfigPost()
         String page = server.arg("npage"); page.trim();
         int notesMax = num("nmax", 5, 15, NotesSource::maxItems());
         bool notesChecked = flag("nchk", NotesSource::showChecked() ? 1 : 0) != 0;
-        bool notesGroup   = flag("ngrp", NotesSource::groupByDay() ? 1 : 0) != 0;
-        NotesSource::set(tok, page, notesMax, notesChecked, notesGroup);
+        NotesSource::set(tok, page, notesMax, notesChecked);
         NotesSource::save();
     }
 
@@ -904,6 +900,8 @@ void CaptivePortal::saveLocationEEPROM()
     cfg.flightIntervalSec = (uint16_t)_flightCheckIntervalSec;
     cfg.flappyBest        = _flappyBestScore;
     cfg.paddleBest        = _paddleCatchBestScore;
+    cfg.simonBest         = _simonBestScore;
+    cfg.airTrafficBest    = _airTrafficBestScore;
     cfg.themeId           = _themeId;
     cfg.dateTimeFormat    = _dateTimeFormat;
     cfg.imperial          = _imperial ? 1 : 0;
@@ -960,6 +958,8 @@ void CaptivePortal::loadLocationEEPROM()
     _flightCheckIntervalSec = cfg.flightIntervalSec;
     _flappyBestScore        = cfg.flappyBest;
     _paddleCatchBestScore   = cfg.paddleBest;
+    _simonBestScore         = cfg.simonBest;
+    _airTrafficBestScore    = cfg.airTrafficBest;
     _themeId                = cfg.themeId;
     _dateTimeFormat         = cfg.dateTimeFormat;
     _imperial               = (cfg.imperial != 0);

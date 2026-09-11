@@ -105,6 +105,14 @@ struct Config {
     uint8_t calMerge;         // collapse the same event from several feeds
     uint8_t calMaxEvents;     // cap on events held in RAM
     uint8_t calHidePast;      // drop today's events once they have ended
+
+    // ======================= END OF VERSION 4 =======================
+
+    // ---- added in v5: best scores for the two newest games ----
+    int32_t simonBest;
+    int32_t airTrafficBest;
+
+    // ======================= END OF VERSION 5 =======================
 };
 
 // Size of the v1 layout, i.e. the offset of the first field added in v2.
@@ -114,13 +122,14 @@ struct Config {
 #define CONFIG_V1_SIZE offsetof(Config, planeFlyover)
 #define CONFIG_V2_SIZE offsetof(Config, pagerStyle)
 #define CONFIG_V3_SIZE offsetof(Config, planeMinAlt100m)
+#define CONFIG_V4_SIZE offsetof(Config, simonBest)
 
 namespace ConfigStore {
 
     // Bump on ANY change to the Config layout above, and handle the old
     // shape in load(). A stored blob whose version or size does not match
     // is discarded and rebuilt from defaults + the EEPROM migration.
-    static const uint8_t VERSION = 4;
+    static const uint8_t VERSION = 5;
 
     // Loads the config, or builds it. Call once at boot, BEFORE anything
     // reads a setting - ThemeManager::begin(), Units::begin() and

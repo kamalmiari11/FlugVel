@@ -38,6 +38,7 @@ static bool   s_migrated  = false;
 static void applyV2Defaults(Config &c);
 static void applyV3Defaults(Config &c);
 static void applyV4Defaults(Config &c);
+static void applyV5Defaults(Config &c);
 
 static void applyDefaults(Config &c) {
     memset(&c, 0, sizeof(c));
@@ -66,6 +67,7 @@ static void applyDefaults(Config &c) {
     applyV2Defaults(c);
     applyV3Defaults(c);
     applyV4Defaults(c);
+    applyV5Defaults(c);
 }
 
 // Split out so the v1 -> v2 migration can reuse it: a v1 blob has none of
@@ -99,6 +101,11 @@ static void applyV4Defaults(Config &c) {
     c.calMerge         = 1;
     c.calMaxEvents     = 20;
     c.calHidePast      = 0;
+}
+
+static void applyV5Defaults(Config &c) {
+    c.simonBest      = 0;
+    c.airTrafficBest = 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,7 +202,8 @@ void begin() {
         memcpy(&s_cfg, &stored, got);
         if (got < CONFIG_V2_SIZE) applyV2Defaults(s_cfg);
         if (got < CONFIG_V3_SIZE) applyV3Defaults(s_cfg);
-        if (got < sizeof(stored)) applyV4Defaults(s_cfg);
+        if (got < CONFIG_V4_SIZE) applyV4Defaults(s_cfg);
+        if (got < sizeof(stored)) applyV5Defaults(s_cfg);
         uint8_t was = s_cfg.version;
         s_cfg.version = VERSION;
         s_loaded = true;

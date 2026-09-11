@@ -127,6 +127,16 @@ public:
     int getPaddleCatchBestScore() { return _paddleCatchBestScore; }
     void setPaddleCatchBestScore(int score) { _paddleCatchBestScore = score; }
 
+    // Best round count reached in Simon Says. Same in-memory + call
+    // saveLocationEEPROM() pattern as the other settings above.
+    int getSimonBestScore() { return _simonBestScore; }
+    void setSimonBestScore(int score) { _simonBestScore = score; }
+
+    // Best score reached in Air Traffic. Same in-memory + call
+    // saveLocationEEPROM() pattern as the other settings above.
+    int getAirTrafficBestScore() { return _airTrafficBestScore; }
+    void setAirTrafficBestScore(int score) { _airTrafficBestScore = score; }
+
     // Which UI theme is active, as a small numeric id matching
     // ThemeRegistry's table (see src/ui/Theme.h/.cpp) - 0 is always the
     // default (Mono Dot-Matrix). In-memory only - call saveLocationEEPROM()
@@ -203,6 +213,8 @@ private:
 
     int _flappyBestScore = 0;
     int _paddleCatchBestScore = 0;
+    int _simonBestScore = 0;
+    int _airTrafficBestScore = 0;
 
     // Default matches ThemeRegistry's default (index 0, Mono Dot-Matrix).
     uint8_t _themeId = 0;
