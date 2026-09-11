@@ -234,7 +234,8 @@ body {
   position: fixed;
   inset: clamp(14px, 3vmin, 56px);
   display: flex;
-  gap: 30px;
+  flex-direction: column;
+  gap: 22px;
   border-radius: 32px;
   background:
     radial-gradient(circle 4px at 28px 28px, #000, transparent 5px),
@@ -247,6 +248,26 @@ body {
     0 50px 100px -24px rgba(0,0,0,.6),
     0 14px 36px rgba(0,0,0,.4),
     inset 0 1px 0 rgba(255,255,255,.05);
+}
+/* The wordmark printed on the case itself, above the glass - like a real
+   device's silkscreened nameplate, not part of the on-screen software UI
+   (which is why it's not in .masthead-bar with the actual nav anymore). */
+.bezel-label {
+  flex: none;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.32);
+  user-select: none;
+}
+.device-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 30px;
 }
 .device-screen {
   flex: 1;
@@ -339,7 +360,9 @@ body {
   .encoder .mark, .kobtn { transition: none; }
 }
 @media (max-width: 620px) {
-  .device-frame { flex-direction: column; inset: 8px; padding: 18px; gap: 14px; border-radius: 22px; }
+  .device-frame { inset: 8px; padding: 18px; gap: 12px; border-radius: 22px; }
+  .bezel-label { font-size: 10px; letter-spacing: 3px; }
+  .device-body { flex-direction: column; gap: 14px; }
   .device-controls {
     width: auto; height: 128px; flex-direction: row; justify-content: center; gap: 80px; order: 2;
   }
