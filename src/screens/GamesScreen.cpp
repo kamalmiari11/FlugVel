@@ -30,14 +30,23 @@ static const GameEntry GAME_ENTRIES[] = {
     // reaction time in ms, with a best-time high score.
     { "Reaction Timer", false },
 
-    // Simon Says - a growing sequence of positions/colors flashes on
-    // screen; turn the knob to highlight a position and press to confirm
-    // each step, repeating the sequence back correctly to advance.
-    { "Simon Says", false },
+    // Simon Says - IMPLEMENTED. Turn the knob to move the highlight among
+    // four pads; the device plays a growing sequence back first (watch
+    // only), then it's the player's turn to repeat it - select and confirm
+    // each step in order. One wrong pad ends the run.
+    { "Simon Says", true },
+
+    // Air Traffic - IMPLEMENTED. Planes drift in from the right, one per
+    // lane; turn the knob to select which lane's plane to clear, press to
+    // land it. A plane that reaches the runway unlanded costs a life -
+    // three losses ends the run.
+    { "Air Traffic", true },
 };
 static const int GAME_COUNT = sizeof(GAME_ENTRIES) / sizeof(GAME_ENTRIES[0]);
 static const int FLAPPY_INDEX = 0;
 static const int PADDLE_INDEX = 1;
+static const int SIMON_INDEX = 3;
+static const int AIRTRAFFIC_INDEX = 4;
 
 // Height of the persistent top status bar (Header::headerHeight). Nothing
 // on this screen may paint over it - the Header is drawn by ScreenManager
@@ -54,7 +63,13 @@ GamesScreen::GamesScreen(TFT_eSPI* display, CaptivePortal* portal)
       _paddleX(0), _paddlePlaneX(0), _paddlePlaneY(0), _paddleScore(0),
       _paddleLives(0), _paddleBest(0), _lastPaddleFrame(0), _paddlePlaneJustSpawned(false),
       _paddleFirstFrame(true), _paddleLastDrawnX(0), _paddleLastDrawnPlaneX(0),
-      _paddleLastDrawnPlaneY(0), _paddleLastDrawnScore(-1), _paddleLastDrawnLives(-1)
+      _paddleLastDrawnPlaneY(0), _paddleLastDrawnScore(-1), _paddleLastDrawnLives(-1),
+      _simonLength(0), _simonShowIndex(0), _simonShowLit(false), _simonPhaseStart(0),
+      _simonInputIndex(0), _simonSelectedPad(0), _simonLastDrawnSelectedPad(-1),
+      _simonLastDrawnInputIndex(-1), _simonScore(0), _simonBest(0),
+      _airSelectedLane(-1), _airLastDrawnSelectedLane(-1),
+      _airScore(0), _airLives(0), _airBest(0), _airLastDrawnScore(-1), _airLastDrawnLives(-1),
+      _lastAirFrame(0), _airLastSpawnAt(0), _airFirstFrame(true)
 {
     for (int i = 0; i < FLAPPY_PIPE_COUNT; i++) {
         _flappyPipeX[i] = 0;
@@ -63,6 +78,15 @@ GamesScreen::GamesScreen(TFT_eSPI* display, CaptivePortal* portal)
         _flappyLastDrawnPipeX[i] = 0;
         _flappyLastDrawnPipeGapY[i] = 0;
         _flappyPipeJustRecycled[i] = false;
+    }
+    for (int i = 0; i < SIMON_MAX_LEN; i++) {
+        _simonSequence[i] = 0;
+    }
+    for (int i = 0; i < AIRTRAFFIC_LANES; i++) {
+        _airPlaneActive[i] = false;
+        _airPlaneX[i] = 0;
+        _airLastDrawnActive[i] = false;
+        _airLastDrawnX[i] = 0;
     }
 }
 
@@ -124,6 +148,10 @@ void GamesScreen::update() {
         updateFlappy();
     } else if (_state == STATE_PADDLE_PLAYING) {
         updatePaddle();
+    } else if (_state == STATE_SIMON_SHOWING) {
+        updateSimonShow();
+    } else if (_state == STATE_AIRTRAFFIC_PLAYING) {
+        updateAirTraffic();
     }
 }
 
@@ -154,6 +182,41 @@ void GamesScreen::draw() {
             break;
 
         case STATE_PADDLE_GAMEOVER:
+            // Painted once when the run ends.
+            break;
+
+        case STATE_SIMON_SHOWING:
+            // Playback painting happens from updateSimonShow() so the
+            // lit/gap timing and the drawing stay in lockstep - nothing to
+            // do here, same reasoning as Flappy/Paddle's PLAYING cases.
+            break;
+
+        case STATE_SIMON_INPUT:
+            // No timer driving this state - it just waits on the knob,
+            // which mutates _simonSelectedPad directly (onEncoderUp/Down).
+            // Same poll-for-a-diff approach as STATE_MENU above: repaint
+            // only the pad that actually moved. The status text ("STEP
+            // n/len") changes on a confirm instead of a cursor move, so
+            // onButtonPress draws that directly rather than through here.
+            if (_simonSelectedPad != _simonLastDrawnSelectedPad) {
+                if (_simonLastDrawnSelectedPad >= 0) {
+                    drawSimonPad(_simonLastDrawnSelectedPad, false, false);
+                }
+                drawSimonPad(_simonSelectedPad, false, true);
+                _simonLastDrawnSelectedPad = _simonSelectedPad;
+            }
+            break;
+
+        case STATE_SIMON_GAMEOVER:
+            // Painted once, right when the round is lost (see onButtonPress).
+            break;
+
+        case STATE_AIRTRAFFIC_PLAYING:
+            // Frame painting happens from updateAirTraffic(), same as
+            // Flappy/Paddle - nothing to do here.
+            break;
+
+        case STATE_AIRTRAFFIC_GAMEOVER:
             // Painted once when the run ends.
             break;
     }
@@ -196,6 +259,8 @@ void GamesScreen::drawMenu(bool fullRepaint) {
         if (playable) {
             int best = (i == FLAPPY_INDEX) ? _portal->getFlappyBestScore()
                      : (i == PADDLE_INDEX) ? _portal->getPaddleCatchBestScore()
+                     : (i == SIMON_INDEX) ? _portal->getSimonBestScore()
+                     : (i == AIRTRAFFIC_INDEX) ? _portal->getAirTrafficBestScore()
                      : 0;
             tft->setTextSize(1);
             tft->setTextDatum(MR_DATUM);
@@ -232,9 +297,23 @@ void GamesScreen::onEncoderUp() {
             break;
         }
 
+        case STATE_SIMON_SHOWING:
+            // Ignored - the sequence is only a few hundred ms per step, so
+            // a knob bump mid-playback doesn't yank the player out of it.
+            break;
+
+        case STATE_SIMON_INPUT:
+            _simonSelectedPad = (_simonSelectedPad + 1) % SIMON_PAD_COUNT;
+            break;
+
+        case STATE_AIRTRAFFIC_PLAYING:
+            _airSelectedLane = airLaneStep(_airSelectedLane, +1);
+            break;
+
         default:
-            // Flappy play/game-over and Paddle game-over: the knob backs
-            // out to the game list (KO_BUTTON owns flap/restart there).
+            // Flappy play/game-over, Paddle game-over, Simon game-over and
+            // Air Traffic game-over: the knob backs out to the game list
+            // (KO_BUTTON owns flap/restart/retry there).
             _state = STATE_MENU;
             _needsMenuRedraw = true;
             break;
@@ -254,6 +333,17 @@ void GamesScreen::onEncoderDown() {
             break;
         }
 
+        case STATE_SIMON_SHOWING:
+            break;
+
+        case STATE_SIMON_INPUT:
+            _simonSelectedPad = (_simonSelectedPad - 1 + SIMON_PAD_COUNT) % SIMON_PAD_COUNT;
+            break;
+
+        case STATE_AIRTRAFFIC_PLAYING:
+            _airSelectedLane = airLaneStep(_airSelectedLane, -1);
+            break;
+
         default:
             _state = STATE_MENU;
             _needsMenuRedraw = true;
@@ -271,6 +361,12 @@ void GamesScreen::onButtonPress() {
                 } else if (_selectedGame == PADDLE_INDEX) {
                     startPaddle();
                     _state = STATE_PADDLE_PLAYING;
+                } else if (_selectedGame == SIMON_INDEX) {
+                    startSimon();
+                    _state = STATE_SIMON_SHOWING;
+                } else if (_selectedGame == AIRTRAFFIC_INDEX) {
+                    startAirTraffic();
+                    _state = STATE_AIRTRAFFIC_PLAYING;
                 }
             }
             // Non-playable entries: no-op - their "Soon" tag already
@@ -296,6 +392,66 @@ void GamesScreen::onButtonPress() {
         case STATE_PADDLE_GAMEOVER:
             startPaddle();
             _state = STATE_PADDLE_PLAYING;
+            break;
+
+        case STATE_SIMON_SHOWING:
+            // Watch-only phase - no input is taken until playback finishes
+            // and control passes to STATE_SIMON_INPUT.
+            break;
+
+        case STATE_SIMON_INPUT: {
+            if (_simonSelectedPad == _simonSequence[_simonInputIndex]) {
+                _simonInputIndex++;
+                if (_simonInputIndex >= _simonLength) {
+                    // Round cleared - grow the sequence by one step and play
+                    // the longer sequence back from the start.
+                    _simonScore++;
+                    if (_simonLength < SIMON_MAX_LEN) {
+                        _simonSequence[_simonLength] = random(0, SIMON_PAD_COUNT);
+                        _simonLength++;
+                    }
+                    _simonShowIndex = 0;
+                    _simonShowLit = false;
+                    _simonPhaseStart = millis();
+                    _state = STATE_SIMON_SHOWING;
+                    drawSimonBoard();
+                    drawSimonStatus("WATCH");
+                } else {
+                    drawSimonStatus("STEP " + String(_simonInputIndex + 1) + "/" + String(_simonLength));
+                }
+            } else {
+                if (_simonScore > _simonBest) {
+                    _simonBest = _simonScore;
+                    _portal->setSimonBestScore(_simonBest);
+                    _portal->saveLocationEEPROM();
+                }
+                _state = STATE_SIMON_GAMEOVER;
+                drawSimonGameOver();
+            }
+            break;
+        }
+
+        case STATE_SIMON_GAMEOVER:
+            startSimon();
+            _state = STATE_SIMON_SHOWING;
+            break;
+
+        case STATE_AIRTRAFFIC_PLAYING:
+            if (_airSelectedLane >= 0 && _airPlaneActive[_airSelectedLane]) {
+                _airPlaneActive[_airSelectedLane] = false;
+                _airScore++;
+                // Hand the cursor to another lane that still has a plane,
+                // if any - same skip-and-wrap helper the knob uses. The
+                // just-cleared lane's own erase happens on the next
+                // updateAirTraffic() frame tick via its dirty-rect diff.
+                int next = airLaneStep(_airSelectedLane, +1);
+                _airSelectedLane = _airPlaneActive[next] ? next : -1;
+            }
+            break;
+
+        case STATE_AIRTRAFFIC_GAMEOVER:
+            startAirTraffic();
+            _state = STATE_AIRTRAFFIC_PLAYING;
             break;
     }
 }
@@ -741,6 +897,361 @@ void GamesScreen::drawPaddleGameOver() {
     tft->setTextDatum(TL_DATUM); // restore default for other screens
 }
 
+// ============ Simon Says ============
+// Layout constants for the 2x2 pad grid - kept file-local since nothing
+// outside this section needs them. Sized/positioned to sit below the
+// one-line status text and above the action-legend bar, matching the
+// SIMON_PLAY_BOTTOM_MARGIN the header already reserves.
+static const int SIMON_PAD_W = 130;
+static const int SIMON_PAD_H = 70;
+static const int SIMON_GRID_GAP = 10;
+static const int SIMON_GRID_X = 25;
+static const int SIMON_GRID_Y = 50;
+
+void GamesScreen::drawSimonPad(int index, bool lit, bool selected) {
+    const Theme &theme = ThemeManager::current();
+    int col = index % 2;
+    int row = index / 2;
+    int x = SIMON_GRID_X + col * (SIMON_PAD_W + SIMON_GRID_GAP);
+    int y = SIMON_GRID_Y + row * (SIMON_PAD_H + SIMON_GRID_GAP);
+
+    // The palette has no distinct per-pad hues (see MyColors.h/Theme.h), so
+    // pads are told apart by position and label, and state is told apart
+    // by fill/border instead of color: lit (playback) uses the accent fill,
+    // selected (input cursor) uses the selection colors with a doubled
+    // border, idle uses the plain background and a thin rule border.
+    uint16_t fill = lit ? theme.accent : (selected ? theme.selectBg : theme.bg);
+    uint16_t border = lit ? theme.accent : (selected ? theme.accent2 : theme.rule);
+    uint16_t labelCol = lit ? theme.bg : (selected ? theme.selectFg : theme.fgDim);
+
+    tft->fillRect(x, y, SIMON_PAD_W, SIMON_PAD_H, fill);
+    tft->drawRect(x, y, SIMON_PAD_W, SIMON_PAD_H, border);
+    if (selected && !lit) {
+        tft->drawRect(x + 3, y + 3, SIMON_PAD_W - 6, SIMON_PAD_H - 6, border);
+    }
+
+    tft->setTextDatum(MC_DATUM);
+    tft->setTextSize(3);
+    tft->setTextColor(labelCol);
+    char label[2] = { (char)('1' + index), '\0' };
+    tft->drawString(label, x + SIMON_PAD_W / 2, y + SIMON_PAD_H / 2);
+    tft->setTextDatum(TL_DATUM);
+}
+
+void GamesScreen::drawSimonStatus(const String &text) {
+    const Theme &theme = ThemeManager::current();
+    const int PLAY_TOP = 20;
+    tft->fillRect(0, PLAY_TOP, tft->width(), SIMON_GRID_Y - PLAY_TOP, theme.bg);
+    tft->setTextDatum(MC_DATUM);
+    tft->setTextSize(2);
+    tft->setTextColor(theme.fg);
+    tft->drawString(text, tft->width() / 2, PLAY_TOP + (SIMON_GRID_Y - PLAY_TOP) / 2);
+    tft->setTextDatum(TL_DATUM);
+}
+
+void GamesScreen::drawSimonBoard() {
+    const Theme &theme = ThemeManager::current();
+    tft->fillRect(0, HEADER_H, tft->width(), tft->height() - HEADER_H, theme.bg);
+    for (int i = 0; i < SIMON_PAD_COUNT; i++) {
+        drawSimonPad(i, false, false);
+    }
+    _simonLastDrawnSelectedPad = -1;
+}
+
+void GamesScreen::startSimon() {
+    for (int i = 0; i < SIMON_MAX_LEN; i++) _simonSequence[i] = 0;
+    _simonSequence[0] = random(0, SIMON_PAD_COUNT);
+    _simonLength = 1;
+    _simonScore = 0;
+    _simonBest = _portal->getSimonBestScore();
+
+    _simonInputIndex = 0;
+    _simonSelectedPad = 0;
+    _simonLastDrawnSelectedPad = -1;
+    _simonLastDrawnInputIndex = -1;
+
+    _simonShowIndex = 0;
+    _simonShowLit = false;
+    _simonPhaseStart = millis();
+
+    drawSimonBoard();
+    drawSimonStatus("WATCH");
+}
+
+void GamesScreen::updateSimonShow() {
+    unsigned long now = millis();
+    unsigned long elapsed = now - _simonPhaseStart;
+
+    if (!_simonShowLit) {
+        // Dark gap before this step - once it's elapsed, light the pad.
+        if (elapsed >= SIMON_GAP_MS) {
+            drawSimonPad(_simonSequence[_simonShowIndex], true, false);
+            _simonShowLit = true;
+            _simonPhaseStart = now;
+        }
+    } else {
+        // Lit step has had its time - turn it back off and either move on
+        // to the next step or hand control to the player.
+        if (elapsed >= SIMON_LIT_MS) {
+            drawSimonPad(_simonSequence[_simonShowIndex], false, false);
+            _simonShowLit = false;
+            _simonShowIndex++;
+            _simonPhaseStart = now;
+
+            if (_simonShowIndex >= _simonLength) {
+                _simonInputIndex = 0;
+                _simonSelectedPad = 0;
+                _simonLastDrawnSelectedPad = -1;
+                _state = STATE_SIMON_INPUT;
+                drawSimonPad(_simonSelectedPad, false, true);
+                _simonLastDrawnSelectedPad = _simonSelectedPad;
+                drawSimonStatus("STEP 1/" + String(_simonLength));
+            }
+        }
+    }
+}
+
+void GamesScreen::drawSimonGameOver() {
+    const Theme &theme = ThemeManager::current();
+    tft->fillRect(0, HEADER_H, tft->width(), tft->height() - HEADER_H, theme.bg);
+
+    tft->setTextDatum(MC_DATUM);
+
+    tft->setTextSize(3);
+    tft->setTextColor(theme.danger);
+    tft->drawString("Game Over", 160, 90);
+
+    char scoreLabel[24];
+    snprintf(scoreLabel, sizeof(scoreLabel), "Rounds: %d", _simonScore);
+    tft->setTextSize(2);
+    tft->setTextColor(theme.fg);
+    tft->drawString(scoreLabel, 160, 140);
+
+    char bestLabel[24];
+    snprintf(bestLabel, sizeof(bestLabel), "Best: %d", _simonBest);
+    tft->setTextColor(theme.accent);
+    tft->drawString(bestLabel, 160, 170);
+
+    tft->setTextDatum(TL_DATUM); // restore default for other screens
+}
+
+// ============ Air Traffic ============
+// AIRTRAFFIC_LANES horizontal lanes stacked between the header and the
+// action-legend bar; each lane holds at most one plane at a time, which is
+// what avoids needing any pairwise collision math - a plane only ever
+// interacts with the runway line, never with another plane.
+
+// Draws (or erases, if color == the background) one plane as a filled
+// triangle pointing left toward the runway: a nose at the front (left)
+// edge, a flat tail at the back (right) edge. Takes its size as parameters
+// rather than reading the class's private AIRTRAFFIC_PLANE_W/H constants
+// directly, same reasoning as fillRectClipped()/drawPaddleLives() above.
+static void drawAirPlane(TFT_eSPI *tft, int x, int laneCenterY, int w, int h, uint16_t color) {
+    int noseX = x - w / 2;
+    int tailX = x + w / 2;
+    tft->fillTriangle(noseX, laneCenterY, tailX, laneCenterY - h / 2, tailX, laneCenterY + h / 2, color);
+}
+
+void GamesScreen::spawnAirTrafficPlane() {
+    int freeLanes[AIRTRAFFIC_LANES];
+    int freeCount = 0;
+    for (int i = 0; i < AIRTRAFFIC_LANES; i++) {
+        if (!_airPlaneActive[i]) freeLanes[freeCount++] = i;
+    }
+    if (freeCount == 0) return; // every lane occupied - try again next spawn tick
+
+    int lane = freeLanes[random(0, freeCount)];
+    _airPlaneActive[lane] = true;
+    _airPlaneX[lane] = tft->width() + AIRTRAFFIC_PLANE_W; // enters just off the right edge
+
+    // If nothing was selected (every lane was empty a moment ago), give the
+    // new plane the cursor automatically instead of leaving the player with
+    // no selection until they turn the knob.
+    if (_airSelectedLane < 0) _airSelectedLane = lane;
+}
+
+void GamesScreen::startAirTraffic() {
+    for (int i = 0; i < AIRTRAFFIC_LANES; i++) {
+        _airPlaneActive[i] = false;
+        _airPlaneX[i] = 0;
+        _airLastDrawnActive[i] = false;
+        _airLastDrawnX[i] = 0;
+    }
+    _airSelectedLane = -1;
+    _airLastDrawnSelectedLane = -1;
+    _airScore = 0;
+    _airLives = AIRTRAFFIC_START_LIVES;
+    _airBest = _portal->getAirTrafficBestScore();
+    _airLastDrawnScore = -1;
+    _airLastDrawnLives = -1;
+
+    _lastAirFrame = millis();
+    _airLastSpawnAt = millis();
+    _airFirstFrame = true; // forces one full clear + full paint next frame
+
+    spawnAirTrafficPlane(); // one plane waiting right away rather than a dead first second
+}
+
+void GamesScreen::updateAirTraffic() {
+    unsigned long now = millis();
+    if (now - _lastAirFrame < AIRTRAFFIC_FRAME_MS) return;
+    _lastAirFrame = now;
+
+    const Theme &theme = ThemeManager::current();
+    const int PLAY_TOP = 20;
+    const int playBottom = tft->height() - AIRTRAFFIC_PLAY_BOTTOM_MARGIN;
+    const int laneH = (playBottom - PLAY_TOP) / AIRTRAFFIC_LANES;
+
+    // Difficulty ramp: 2.0px/frame at score 0, +0.1 per point, capped at
+    // 5.0 - same idea as Paddle Catch's fall-speed ramp.
+    float speed = 2.0f + (_airScore * 0.1f);
+    if (speed > 5.0f) speed = 5.0f;
+
+    if (now - _airLastSpawnAt >= AIRTRAFFIC_SPAWN_MS) {
+        _airLastSpawnAt = now;
+        spawnAirTrafficPlane();
+    }
+
+    // ---- Movement + miss detection ----
+    bool lifeLost = false;
+    const int half = AIRTRAFFIC_PLANE_W / 2;
+    for (int i = 0; i < AIRTRAFFIC_LANES; i++) {
+        if (!_airPlaneActive[i]) continue;
+        _airPlaneX[i] -= speed;
+
+        if (_airPlaneX[i] - half <= AIRTRAFFIC_RUNWAY_X) {
+            // Reached the runway unlanded - costs a life instead of ending
+            // the run outright.
+            _airPlaneActive[i] = false;
+            _airLives--;
+            lifeLost = true;
+            if (_airSelectedLane == i) _airSelectedLane = -1;
+        }
+    }
+
+    if (lifeLost && _airSelectedLane < 0) {
+        // The selection may have just been cleared above - hand it to
+        // whatever other lane still has a plane, if any.
+        int next = airLaneStep(-1, +1);
+        _airSelectedLane = _airPlaneActive[next] ? next : -1;
+    }
+
+    if (_airLives <= 0) {
+        if (_airScore > _airBest) {
+            _airBest = _airScore;
+            _portal->setAirTrafficBestScore(_airBest);
+            _portal->saveLocationEEPROM();
+        }
+        _state = STATE_AIRTRAFFIC_GAMEOVER;
+        drawAirTrafficGameOver();
+        return;
+    }
+
+    // ---- Drawing ----
+    // Dirty-rect, same approach as Flappy/Paddle: only the pixels that
+    // actually changed get touched. Folded directly into this function
+    // (rather than a separate drawAirTrafficFrame()) since the only moving
+    // state is each lane's plane x - nothing else needs to call into the
+    // drawing half on its own.
+    if (_airFirstFrame) {
+        tft->fillRect(0, PLAY_TOP, tft->width(), playBottom - PLAY_TOP, theme.bg);
+
+        tft->drawFastVLine(AIRTRAFFIC_RUNWAY_X, PLAY_TOP, playBottom - PLAY_TOP, theme.rule);
+        for (int i = 1; i < AIRTRAFFIC_LANES; i++) {
+            tft->drawFastHLine(0, PLAY_TOP + laneH * i, tft->width(), theme.rule);
+        }
+
+        for (int i = 0; i < AIRTRAFFIC_LANES; i++) {
+            _airLastDrawnActive[i] = _airPlaneActive[i];
+            _airLastDrawnX[i] = _airPlaneX[i];
+            if (_airPlaneActive[i]) {
+                int laneCenterY = PLAY_TOP + laneH * i + laneH / 2;
+                drawAirPlane(tft, (int)_airPlaneX[i], laneCenterY, AIRTRAFFIC_PLANE_W, AIRTRAFFIC_PLANE_H,
+                             (i == _airSelectedLane) ? theme.accent : theme.fg);
+            }
+        }
+
+        tft->fillRect(8, PLAY_TOP + 2, 60, 20, theme.bg);
+        tft->setTextSize(2);
+        tft->setTextColor(theme.fg);
+        tft->setCursor(10, PLAY_TOP + 4);
+        tft->print(_airScore);
+        _airLastDrawnScore = _airScore;
+
+        drawPaddleLives(tft, _airLives, AIRTRAFFIC_START_LIVES, theme.bg, theme.danger);
+        _airLastDrawnLives = _airLives;
+
+        _airLastDrawnSelectedLane = _airSelectedLane;
+        _airFirstFrame = false;
+        return;
+    }
+
+    for (int i = 0; i < AIRTRAFFIC_LANES; i++) {
+        int laneCenterY = PLAY_TOP + laneH * i + laneH / 2;
+        bool wasActive = _airLastDrawnActive[i];
+        bool isActive = _airPlaneActive[i];
+        bool wasSelected = (_airLastDrawnSelectedLane == i);
+        bool isSelected = (_airSelectedLane == i);
+
+        if (wasActive && (!isActive || (int)_airLastDrawnX[i] != (int)_airPlaneX[i] || wasSelected != isSelected)) {
+            drawAirPlane(tft, (int)_airLastDrawnX[i], laneCenterY, AIRTRAFFIC_PLANE_W, AIRTRAFFIC_PLANE_H, theme.bg);
+        }
+        if (isActive) {
+            drawAirPlane(tft, (int)_airPlaneX[i], laneCenterY, AIRTRAFFIC_PLANE_W, AIRTRAFFIC_PLANE_H,
+                         isSelected ? theme.accent : theme.fg);
+        }
+        _airLastDrawnActive[i] = isActive;
+        _airLastDrawnX[i] = _airPlaneX[i];
+    }
+    _airLastDrawnSelectedLane = _airSelectedLane;
+
+    if (_airScore != _airLastDrawnScore) {
+        tft->fillRect(8, PLAY_TOP + 2, 60, 20, theme.bg);
+        tft->setTextSize(2);
+        tft->setTextColor(theme.fg);
+        tft->setCursor(10, PLAY_TOP + 4);
+        tft->print(_airScore);
+        _airLastDrawnScore = _airScore;
+    }
+
+    if (_airLives != _airLastDrawnLives) {
+        drawPaddleLives(tft, _airLives, AIRTRAFFIC_START_LIVES, theme.bg, theme.danger);
+        _airLastDrawnLives = _airLives;
+    }
+}
+
+void GamesScreen::drawAirTrafficGameOver() {
+    const Theme &theme = ThemeManager::current();
+    tft->fillRect(0, HEADER_H, tft->width(), tft->height() - HEADER_H, theme.bg);
+
+    tft->setTextDatum(MC_DATUM);
+
+    tft->setTextSize(3);
+    tft->setTextColor(theme.danger);
+    tft->drawString("Game Over", 160, 90);
+
+    char scoreLabel[24];
+    snprintf(scoreLabel, sizeof(scoreLabel), "Landed: %d", _airScore);
+    tft->setTextSize(2);
+    tft->setTextColor(theme.fg);
+    tft->drawString(scoreLabel, 160, 140);
+
+    char bestLabel[24];
+    snprintf(bestLabel, sizeof(bestLabel), "Best: %d", _airBest);
+    tft->setTextColor(theme.accent);
+    tft->drawString(bestLabel, 160, 170);
+
+    tft->setTextDatum(TL_DATUM); // restore default for other screens
+}
+
+int GamesScreen::airLaneStep(int from, int dir) {
+    for (int k = 1; k <= AIRTRAFFIC_LANES; k++) {
+        int i = ((from + dir * k) % AIRTRAFFIC_LANES + AIRTRAFFIC_LANES) % AIRTRAFFIC_LANES;
+        if (_airPlaneActive[i]) return i;
+    }
+    return from;
+}
+
 void GamesScreen::getActionLegend(String &line1, String &line2) const {
     switch (_state) {
         case STATE_MENU:
@@ -760,6 +1271,26 @@ void GamesScreen::getActionLegend(String &line1, String &line2) const {
             line2 = "o QUIT";
             break;
         case STATE_PADDLE_GAMEOVER:
+            line1 = "^v BACK TO LIST";
+            line2 = "o RETRY";
+            break;
+        case STATE_SIMON_SHOWING:
+            line1 = "WATCH";
+            line2 = "";
+            break;
+        case STATE_SIMON_INPUT:
+            line1 = "^v SELECT PAD";
+            line2 = "o CONFIRM";
+            break;
+        case STATE_SIMON_GAMEOVER:
+            line1 = "^v BACK TO LIST";
+            line2 = "o RETRY";
+            break;
+        case STATE_AIRTRAFFIC_PLAYING:
+            line1 = "^v SELECT PLANE";
+            line2 = "o LAND";
+            break;
+        case STATE_AIRTRAFFIC_GAMEOVER:
             line1 = "^v BACK TO LIST";
             line2 = "o RETRY";
             break;
