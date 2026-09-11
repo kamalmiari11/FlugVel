@@ -1,4 +1,4 @@
-# Deploying flugvel-web
+# Deploying flugvel
 
 This deploys to **Cloudflare Pages** (free tier) with a **D1** database.
 You'll need to do the account creation and login steps yourself — I can't
@@ -17,7 +17,7 @@ Run these in your own terminal on your computer (PowerShell, Command
 Prompt, or WSL) — not through a sandboxed/remote shell, since Cloudflare's
 API is blocked from some sandboxed environments.
 
-From inside this `flugvel-web` folder, either log in interactively:
+From inside this `web` folder, either log in interactively:
 
 ```bash
 npx wrangler login
@@ -61,27 +61,42 @@ wrangler d1 execute flugvel --remote --file=schema.sql
 ## 4. Create the Pages project and set secrets
 
 ```bash
-wrangler pages project create flugvel-web
+wrangler pages project create flugvel
 ```
 
-Set the two secrets the API needs (pick your own values — a real password,
-and a long random string for signing tokens):
+Set the secrets the API needs (pick your own values — a real password, and
+a long random string for signing tokens):
 
 ```bash
-wrangler pages secret put ADMIN_PASSWORD --project-name=flugvel-web
-wrangler pages secret put JWT_SECRET --project-name=flugvel-web
+wrangler pages secret put ADMIN_PASSWORD --project-name=flugvel
+wrangler pages secret put JWT_SECRET --project-name=flugvel
 ```
 
 For `JWT_SECRET`, something like the output of `openssl rand -hex 32` is a
 good pick — you'll never need to type it again yourself.
 
+If you want the "Get updates" email signup on the landing page to actually
+send a welcome email (it'll still save signups to D1 without this, it just
+won't email anyone), also set:
+
+```bash
+wrangler pages secret put RESEND_API_KEY --project-name=flugvel
+wrangler pages secret put RESEND_FROM --project-name=flugvel
+```
+
+`RESEND_API_KEY` comes from your Resend account's API Keys page.
+`RESEND_FROM` must be an address on a domain you've verified in Resend
+(e.g. `FlugVel <updates@flugvel.com>`) — without a verified domain, Resend
+restricts sending to only your own account email, which is easy to mistake
+for a broken integration. See resend.com/domains.
+
 ## 5. Deploy
 
 ```bash
-wrangler pages deploy public --project-name=flugvel-web
+wrangler pages deploy public --project-name=flugvel
 ```
 
-This prints a URL like `https://flugvel-web.pages.dev`. Open it and check:
+This prints a URL like `https://flugvel.pages.dev`. Open it and check:
 
 - `/` — the landing page
 - `/manual.html` — the manual
@@ -89,7 +104,7 @@ This prints a URL like `https://flugvel-web.pages.dev`. Open it and check:
 - `/m-223d0f.html` — should load (empty) after logging in
 
 If the dashboard 500s or the D1 binding isn't found, go to the Cloudflare
-dashboard → **Workers & Pages** → `flugvel-web` → **Settings** → **Functions**
+dashboard → **Workers & Pages** → `flugvel` → **Settings** → **Functions**
 → **D1 database bindings**, and bind variable name `DB` to the `flugvel`
 database by hand — some wrangler versions don't yet pick up the
 `[[d1_databases]]` block in `wrangler.toml` for Pages projects.
@@ -107,7 +122,7 @@ Namecheap as the registrar — nothing about ownership changes):
    nameservers → save.
 3. Wait for it to take effect (usually well under an hour, sometimes up to
    24h). Cloudflare emails you once it's active.
-4. Back in Cloudflare: **Workers & Pages** → `flugvel-web` → **Custom
+4. Back in Cloudflare: **Workers & Pages** → `flugvel` → **Custom
    domains** → **Add a custom domain** → enter `flugvel.com` (and again
    for `www.flugvel.com` if you want both). Cloudflare wires up the DNS
    records and SSL certificate automatically since it already manages the
@@ -122,7 +137,7 @@ subdomain needed.
 Any time you edit files in `public/` or `functions/`:
 
 ```bash
-wrangler pages deploy public --project-name=flugvel-web
+wrangler pages deploy public --project-name=flugvel
 ```
 
 That's the whole update flow — no rebuild step, no server to restart.
