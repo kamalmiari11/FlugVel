@@ -287,14 +287,98 @@
     function normalize(s) {
       return s.toLowerCase().replace(/[-‐-―\s]+/g, "");
     }
-    entries.forEach(function (e) { e.searchText = normalize(e.sec.textContent); });
+    // Plain word-splitting for the typo-tolerant fallback below - lowercase,
+    // fuse away hyphens/dashes first (same as normalize(), so "Wi-Fi" is one
+    // word "wifi" instead of splitting into throwaway fragments "wi" and
+    // "fi"), then break on anything else that isn't a letter/digit. Single
+    // characters are dropped - too short to usefully match against.
+    function wordsOf(s) {
+      var out = [];
+      var fused = s.replace(/[-‐-―]+/g, "");
+      var parts = fused.toLowerCase().split(/[^a-z0-9]+/);
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i].length > 1) out.push(parts[i]);
+      }
+      return out;
+    }
+    // Damerau-Levenshtein edit distance (insert/delete/substitute, plus an
+    // adjacent transposition counting as a single edit rather than two) -
+    // the transposition case matters here because swapped letters ("notoin"
+    // for "notion") are one of the most common typing slips, and without it
+    // those would need double the typo budget of every other kind of typo.
+    function editDistance(a, b) {
+      if (a === b) return 0;
+      var al = a.length, bl = b.length;
+      var d = [];
+      for (var i = 0; i <= al; i++) d[i] = [i];
+      for (var j = 0; j <= bl; j++) d[0][j] = j;
+      for (i = 1; i <= al; i++) {
+        for (j = 1; j <= bl; j++) {
+          var cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+          d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+          if (i > 1 && j > 1 && a.charCodeAt(i - 1) === b.charCodeAt(j - 2) && a.charCodeAt(i - 2) === b.charCodeAt(j - 1)) {
+            d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+          }
+        }
+      }
+      return d[al][bl];
+    }
+    // How many typos to forgive scales with word length - kept tight (a
+    // single edit) through most real words, since a 2-edit budget on a
+    // 6-letter query starts coincidentally matching unrelated words (e.g.
+    // "notoin" was matching "nothing") rather than actual typos.
+    function typoBudget(len) {
+      if (len <= 7) return 1;
+      if (len <= 12) return 2;
+      return 3;
+    }
+    // Does this query word plausibly mean one of this section's words -
+    // either one contains the other (catches partial/squished typing, like
+    // "flappyplane" while aiming for "Flappy Plane"), or they're within typo
+    // distance of each other. The containment check only counts once both
+    // words are at least 4 letters - without that floor, a query like
+    // "notoin" trivially "contains" tiny common words such as "in" that
+    // show up in nearly every section, and the search stops narrowing
+    // anything down.
+    function fuzzyWordMatch(queryWord, sectionWords) {
+      var budget = typoBudget(queryWord.length);
+      for (var i = 0; i < sectionWords.length; i++) {
+        var w = sectionWords[i];
+        if (Math.abs(w.length - queryWord.length) > budget + 2) continue; // cheap pre-filter
+        if (w.length >= 4 && queryWord.length >= 4 && (w.indexOf(queryWord) !== -1 || queryWord.indexOf(w) !== -1)) return true;
+        if (editDistance(queryWord, w) <= budget) return true;
+      }
+      return false;
+    }
+
+    entries.forEach(function (e) {
+      e.searchText = normalize(e.sec.textContent);
+      e.words = wordsOf(e.sec.textContent);
+    });
 
     function runFilter() {
       var raw = input.value.trim();
       var q = normalize(raw);
+      var queryWords = wordsOf(raw);
       var anyMatch = false;
       entries.forEach(function (e) {
-        var match = !q || e.searchText.indexOf(q) !== -1;
+        var match;
+        if (!raw) {
+          match = true;
+        } else if (e.searchText.indexOf(q) !== -1) {
+          match = true; // exact (hyphen/space-insensitive) match - the common case
+        } else {
+          // Typo-tolerant fallback: every word you typed has to be close to
+          // some word in this section, even if none of it lines up exactly.
+          // A 1-2 letter query word requires an exact word match rather than
+          // fuzzy matching (too short for "close to" to mean anything) or a
+          // substring check against the run-together searchText blob (a
+          // fragment like "in" or "to" turns up inside plenty of unrelated
+          // words once spaces are stripped, matching almost everything).
+          match = queryWords.length > 0 && queryWords.every(function (qw) {
+            return qw.length <= 2 ? e.words.indexOf(qw) !== -1 : fuzzyWordMatch(qw, e.words);
+          });
+        }
         e.sec.hidden = !match;
         var link = linkForId[e.heading.id];
         if (link) link.style.display = match ? "" : "none";
