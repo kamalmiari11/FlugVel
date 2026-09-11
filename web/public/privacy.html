@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — FlugVel</title>
+<meta name="description" content="What FlugVel's website collects, why, and who it's shared with.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="canonical" href="https://flugvel.com/privacy.html">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="device-frame">
+  <div class="device-screen" id="deviceScreen">
+
+    <header class="masthead-bar">
+      <div class="wrap">
+        <p class="brand-title"><b>[</b> FLUGVEL <b>]</b></p>
+        <nav class="tabs" role="tablist">
+          <a class="tab" role="tab" href="index.html"><span class="n">01</span> Overview</a>
+          <a class="tab" role="tab" href="manual.html"><span class="n">02</span> Manual</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="wrap manual-layout" style="grid-template-columns: 1fr; max-width: 720px;">
+      <div class="manual">
+        <h1 style="margin-top:0;">Privacy Policy</h1>
+        <p class="sub" style="margin-bottom:0;">Last updated September 2026. FlugVel is a personal project, not a company — this page is written in plain language rather than legal boilerplate, and covers exactly what this site does.</p>
+
+        <div class="manual-section">
+          <h2 class="first" id="collect">What this site collects</h2>
+          <p>If you use the "Get updates" signup form, it stores the email address you enter, along with the date you signed up. That's the only personal information this site asks visitors for.</p>
+          <p>Simply reading the site — the overview page or the manual — doesn't collect or store anything about you. There's no tracking script, no third-party ad network, and no analytics running on this site as of this writing. If that changes, this page will be updated to say so, and any analytics added will be the cookieless, non-tracking kind rather than something that profiles visitors.</p>
+        </div>
+
+        <div class="manual-section">
+          <h2 id="cookies">Cookies</h2>
+          <p>The only cookie this site sets is on the private admin dashboard, used to keep the site owner logged in. It's what's called a "strictly necessary" cookie — it doesn't track you, isn't used for advertising, and isn't shared with anyone. It's not set at all unless someone actually logs in, which nobody but the owner can do. Because of that, this site doesn't show a cookie consent banner; there's nothing here that legally requires one.</p>
+        </div>
+
+        <div class="manual-section">
+          <h2 id="use">What the email address is used for</h2>
+          <p>Signing up gets you a one-time welcome email, and occasional emails when there's an actual firmware or feature update — nothing else. Your address is never sold, shared with advertisers, or used for anything beyond that. Every email includes a way to be removed (currently: reply and ask).</p>
+        </div>
+
+        <div class="manual-section">
+          <h2 id="thirdparty">Who this data passes through</h2>
+          <p>Two outside services are involved in running this site, and both only see what's strictly needed to do their job:</p>
+          <ul>
+            <li><strong>Cloudflare</strong> hosts the site and its database (Cloudflare Pages and D1). Your email address, if you sign up, is stored in that database.</li>
+            <li><strong>Resend</strong> is the email service used to actually send the welcome/update emails. It sees the email address you enter and the content of the email being sent — nothing more.</li>
+          </ul>
+          <p>Neither service is authorized to use this data for anything beyond delivering this site and its emails.</p>
+        </div>
+
+        <div class="manual-section">
+          <h2 id="device">The physical device</h2>
+          <p>FlugVel devices are self-hosted — a unit checks in with this website's server periodically to report its status and check for firmware updates, using a shared device key rather than any personal login. Device check-ins may include a device ID, approximate signal strength, and firmware version, but nothing about what you personally do with your unit (your flights, weather, calendar, or notes stay on the device and the third-party services you configured it to use directly — they don't pass through or get stored on this website).</p>
+        </div>
+
+        <div class="manual-section">
+          <h2 id="rights">Removing your data</h2>
+          <p>To be removed from the update list, reply to any email from it and ask, or reach out through wherever you found this site. Since there's no account system for visitors, there's no login to delete — asking is genuinely the whole process.</p>
+        </div>
+
+        <div class="manual-section">
+          <h2 id="changes">Changes to this policy</h2>
+          <p>If what this site collects or how it's used ever changes, this page will be updated to reflect that, with the "last updated" date above changed accordingly.</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="wrap">
+        <span>FlugVel — a personal project.</span>
+      </div>
+    </footer>
+
+  </div>
+  <div class="device-controls" aria-hidden="true">
+    <div class="encoder"><span class="mark" id="encoderMark"></span></div>
+    <div class="kobtn" id="deviceButton"></div>
+  </div>
+</div>
+
+<script src="script.js" defer></script>
+</body>
+</html>
