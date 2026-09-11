@@ -99,19 +99,40 @@
 
   // The knob turned scrolling into a visual - now it works the other way
   // too: grab it (mouse or touch, via Pointer Events so both paths share
-  // one code path) and dragging up/down actually scrolls the screen.
-  // That drives #deviceScreen's own scrollTop, which is exactly what the
-  // scroll listener above is already watching, so the mark keeps rotating
-  // in sync for free - no separate rotation logic to keep in step.
+  // one code path) and turn it to actually scroll the screen. That drives
+  // #deviceScreen's own scrollTop, which is exactly what the scroll
+  // listener above is already watching, so the mark keeps rotating in
+  // sync for free - no separate rotation logic to keep in step.
+  //
+  // This tracks the pointer's ANGLE around the knob's center rather than
+  // its raw vertical position. A straight vertical drag can only scroll as
+  // far as your hand physically travels before it runs off the window -
+  // tracking rotation instead means you can keep circling the knob
+  // indefinitely (several full turns without ever running out of room),
+  // same as actually spinning a dial.
   var knob = mark && mark.parentElement;
   if (knob && window.PointerEvent) {
     var dragId = null;
-    var dragLastY = 0;
+    var lastAngle = 0;
+    var DEG_TO_PX = 2.2; // scroll pixels per degree turned
+
+    // Angle is unstable within a few px of dead center (tiny mouse jitter
+    // there swings wildly), so grabs/moves that close are ignored rather
+    // than fed into the scroll math.
+    function angleFromCenter(x, y) {
+      var rect = knob.getBoundingClientRect();
+      var dx = x - (rect.left + rect.width / 2);
+      var dy = y - (rect.top + rect.height / 2);
+      if (Math.hypot(dx, dy) < 10) return null;
+      return Math.atan2(dy, dx) * (180 / Math.PI);
+    }
 
     knob.addEventListener("pointerdown", function (e) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
+      var a = angleFromCenter(e.clientX, e.clientY);
+      if (a === null) return;
       dragId = e.pointerId;
-      dragLastY = e.clientY;
+      lastAngle = a;
       knob.classList.add("dragging");
       try {
         knob.setPointerCapture(dragId);
@@ -123,10 +144,15 @@
 
     knob.addEventListener("pointermove", function (e) {
       if (dragId === null || e.pointerId !== dragId) return;
-      var delta = e.clientY - dragLastY;
-      if (delta === 0) return;
-      dragLastY = e.clientY;
-      screen.scrollTop += delta;
+      var a = angleFromCenter(e.clientX, e.clientY);
+      if (a === null) return; // too close to center this frame - hold last angle
+      var delta = a - lastAngle;
+      // Normalize across the +-180deg wrap so crossing it doesn't register
+      // as a near-360deg jump.
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+      lastAngle = a;
+      screen.scrollTop += delta * DEG_TO_PX;
     });
 
     function stopDrag(e) {
