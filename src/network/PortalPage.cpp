@@ -470,11 +470,9 @@ button.act.ghost{background:transparent;color:var(--fg);border-color:var(--rule)
             }
             case ScreenId::Notes: {
                 p += "<p class=\"hint\">Free at notion.so/my-integrations: create an "
-                     "internal integration with <strong>read AND update</strong> content "
-                     "capability (update is needed to tick things off from the device "
-                     "itself), copy its secret, then share your notes page with it from "
-                     "the page&#39;s &middot;&middot;&middot; menu &rsaquo; Connections. "
-                     "Paste both below.</p>";
+                     "internal integration, copy its secret, then share your notes page "
+                     "with it from the page&#39;s &middot;&middot;&middot; menu &rsaquo; "
+                     "Connections. Paste both below.</p>";
                 optText(p, "ntok", "Integration token", "starts with secret_ or ntn_",
                         NotesSource::token(), 120, "secret_...");
                 optText(p, "npage", "Page", "the page's URL, or just its id",
@@ -485,7 +483,7 @@ button.act.ghost{background:transparent;color:var(--fg);border-color:var(--rule)
                 for (int i = 0; i < 4; i++) if (kNMaxV[i] == NotesSource::maxItems()) { nmi = i; break; }
                 optSelect(p, "nmax", "Items shown", "how many rows the screen keeps", kNMax, kNMaxV, 4, nmi);
                 optSwitch(p, "nchk", "Show checked items", "keep finished to-dos instead of dropping them", NotesSource::showChecked());
-                optSwitch(p, "ngrp", "Group notes by day", "collapse into day headings (like \"Monday\"), the first one opened automatically - turn the knob to move between rows, press to open/close a day or tick a to-do", NotesSource::groupByDay());
+                optSwitch(p, "ngrp", "Group by day", "collapse the list into day sections, today opened automatically", NotesSource::groupByDay());
                 break;
             }
             default:

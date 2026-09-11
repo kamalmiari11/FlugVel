@@ -783,7 +783,8 @@ void CaptivePortal::applyConfigPost()
         String page = server.arg("npage"); page.trim();
         int notesMax = num("nmax", 5, 15, NotesSource::maxItems());
         bool notesChecked = flag("nchk", NotesSource::showChecked() ? 1 : 0) != 0;
-        NotesSource::set(tok, page, notesMax, notesChecked);
+        bool notesGrouped = flag("ngrp", NotesSource::groupByDay() ? 1 : 0) != 0;
+        NotesSource::set(tok, page, notesMax, notesChecked, notesGrouped);
         NotesSource::save();
     }
 
