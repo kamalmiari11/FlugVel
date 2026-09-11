@@ -1,4 +1,5 @@
 import { json } from "../_lib/auth.js";
+import { WELCOME_EMAIL_SUBJECT, WELCOME_EMAIL_TEXT, WELCOME_EMAIL_HTML } from "../_lib/welcome-email.js";
 
 // A deliberately loose but real email check - not trying to fully validate
 // RFC 5322, just catching "clearly not an email" (empty, no @, no dot after
@@ -17,23 +18,18 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // started from), and a slow/failed Resend call never turns a successful
 // signup into an error shown to the visitor.
 //
+// RESEND_FROM must be set to an address on a domain verified in Resend
+// (e.g. "FlugVel <updates@flugvel.com>") - without it, Resend falls back to
+// its shared sandbox sender, which only allows sending to the account's own
+// email address. See DEPLOY.md.
+//
 // There's no unsubscribe link in the welcome email yet - Resend's own
-// suppression-list handling needs a verified sending domain (see
-// RESEND_FROM below). For a personal-project mailing list, "reply to this
-// email and I'll remove you" is a fine stand-in until that's set up; if
-// this list grows past that, revisit before sending anything beyond the
-// welcome email.
+// suppression-list handling needs a verified sending domain, which is now
+// in place, but the list is small enough that "reply to this email and
+// I'll remove you" is still a fine stand-in. Revisit before this list gets
+// much bigger.
 export async function onRequestPost(context) {
   const { request, env } = context;
-
-  // TEMPORARY, remove once the Resend integration is confirmed working:
-  // ?debug=1 adds a `resend` field to the response describing what
-  // happened on the Resend side - never the API key or email content,
-  // just whether it was configured, attempted, and what Resend said back.
-  // Gated behind a query param rather than always-on so ordinary visitors
-  // never see it.
-  const debug = new URL(request.url).searchParams.get("debug") === "1";
-  const debugInfo = { hasKey: false, attempted: false, resendOk: null, status: null, error: null };
 
   let body;
   try {
@@ -59,49 +55,27 @@ export async function onRequestPost(context) {
      VALUES (?, ?, datetime('now'))`
   ).bind(crypto.randomUUID(), email).run();
 
-  debugInfo.hasKey = !!env.RESEND_API_KEY;
-
   if (env.RESEND_API_KEY) {
-    debugInfo.attempted = true;
     try {
-      const resendRes = await fetch("https://api.resend.com/emails", {
+      await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${env.RESEND_API_KEY}`,
           "Content-Type": "application/json",
         },
-        // RESEND_FROM defaults to Resend's own shared sandbox address,
-        // which works with zero setup but reads as coming from Resend, not
-        // FlugVel. Set RESEND_FROM (e.g. "FlugVel <updates@flugvel.com>")
-        // once flugvel.com is verified as a sending domain in the Resend
-        // dashboard - see DEPLOY.md.
         body: JSON.stringify({
           from: env.RESEND_FROM || "FlugVel <onboarding@resend.dev>",
           to: email,
-          subject: "You're on the list",
-          text:
-            "Thanks for signing up. You'll get an email whenever there's a " +
-            "real update to FlugVel - new firmware, new features, that " +
-            "kind of thing. No spam, and no set schedule.\n\n" +
-            "Didn't mean to sign up, or want off the list? Just reply to " +
-            "this email and I'll remove you.",
+          subject: WELCOME_EMAIL_SUBJECT,
+          text: WELCOME_EMAIL_TEXT,
+          html: WELCOME_EMAIL_HTML,
         }),
       });
-      debugInfo.resendOk = resendRes.ok;
-      debugInfo.status = resendRes.status;
-      if (!resendRes.ok) {
-        // Resend's error bodies are small JSON objects like
-        // {"message": "...", "name": "..."} - safe to surface in debug
-        // mode, no secrets in there.
-        debugInfo.error = await resendRes.text().catch(() => null);
-      }
-    } catch (err) {
-      // Best-effort in normal operation - see the function-level comment
-      // above, the subscriber is already saved in D1 either way. In debug
-      // mode, surface what actually went wrong instead of swallowing it.
-      debugInfo.error = String(err && err.message ? err.message : err);
+    } catch {
+      // Best-effort - see the function-level comment above, the subscriber
+      // is already saved in D1 either way.
     }
   }
 
-  return json(debug ? { ok: true, resend: debugInfo } : { ok: true });
+  return json({ ok: true });
 }
