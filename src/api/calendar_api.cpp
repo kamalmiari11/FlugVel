@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <string.h>
+#include <ctype.h>
 
 // ============================================================================
 // iCal (.ics) feed reader.
@@ -9,8 +10,13 @@
 // The feeds Google/iCloud/Outlook hand out contain the WHOLE calendar
 // (years of history), typically 100 KB+ and served chunked, so nothing is
 // buffered: the body is read through a chunked-aware byte reader that
-// yields one unfolded iCal line at a time, and only SUMMARY / LOCATION /
-// DTSTART are kept for VEVENTs that start inside the requested window.
+// yields one unfolded iCal line at a time, and only the handful of
+// properties actually shown (SUMMARY / LOCATION / DTSTART / ...) are kept,
+// for VEVENTs that start inside the requested window.
+//
+// A repeating event appears in the feed once, as a rule rather than as one
+// entry per occurrence, so RRULE is expanded here into the individual
+// occurrences that land in the window - see the RRule section below.
 // ============================================================================
 
 namespace {
@@ -115,6 +121,38 @@ long daysFromCivil(int y, int m, int d) {
 
 time_t civilToEpoch(int y, int mo, int d, int h, int mi, int s) {
     return (time_t)(daysFromCivil(y, mo, d) * 86400LL + h * 3600 + mi * 60 + s);
+}
+
+// The inverse - Hinnant's civil-from-days. Needed by the recurrence expander,
+// which has to do its arithmetic on calendar fields ("the same day next
+// month") rather than on epoch seconds, since months and years are not a
+// fixed number of them.
+void civilFromDays(long z, int &y, int &m, int &d) {
+    z += 719468L;
+    long era = (z >= 0 ? z : z - 146096) / 146097;
+    unsigned long doe = (unsigned long)(z - era * 146097L);
+    unsigned long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    long yr = (long)yoe + era * 400;
+    unsigned long doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    unsigned long mp = (5 * doy + 2) / 153;
+    unsigned long dd = doy - (153 * mp + 2) / 5 + 1;
+    unsigned long mm = mp + (mp < 10 ? 3 : -9);
+    y = (int)(yr + (mm <= 2));
+    m = (int)mm;
+    d = (int)dd;
+}
+
+// 0 = Sunday. 1970-01-01 is day 0 and was a Thursday, hence the +11 before
+// the modulo (which also keeps it correct for negative day numbers).
+int weekdayFromDays(long z) { return (int)((z % 7 + 11) % 7); }
+
+int daysInMonth(int y, int m) {
+    static const int len[] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+    if (m == 2) {
+        bool leap = (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0);
+        return leap ? 29 : 28;
+    }
+    return len[m - 1];
 }
 
 // Current local UTC offset in seconds (this newlib build has no tm_gmtoff):
@@ -231,6 +269,126 @@ void addAttendee(CalEvent &e, const String &nameParams, const String &val) {
     }
 }
 
+// ---- RRULE ----
+// Supports what people actually create in Google/Outlook: FREQ with an
+// INTERVAL, weekly-on-specific-days, monthly/yearly on either a day of the
+// month or an nth weekday ("third Tuesday", "last Friday"), bounded by UNTIL
+// or COUNT, with individually deleted occurrences honoured via EXDATE.
+//
+// Deliberately NOT supported: BYMONTH / BYMONTHDAY lists, BYSETPOS, WKST
+// (Monday is assumed, which is its default), and BYYEARDAY / BYWEEKNO. Those
+// appear almost exclusively in machine-generated calendars, and a rule using
+// one is expanded on its remaining fields rather than being dropped - showing
+// an event slightly too often is a better failure than the silent nothing
+// this code used to produce for every repeating event.
+struct RRule {
+    enum Freq { NONE, DAILY, WEEKLY, MONTHLY, YEARLY };
+    Freq    freq = NONE;
+    int     interval = 1;
+    long    count = 0;        // 0 = unbounded
+    time_t  until = 0;        // 0 = unbounded
+    uint8_t byDayMask = 0;    // weekly: bit 0 = Sunday .. bit 6 = Saturday
+    int     byDayOrdinal = 0; // monthly/yearly "3TU" / "-1FR"; 0 = unused
+    int     byDayWeekday = -1;
+};
+
+int weekdayCode(const String &s) {
+    static const char *names[] = { "SU","MO","TU","WE","TH","FR","SA" };
+    for (int i = 0; i < 7; i++) if (s == names[i]) return i;
+    return -1;
+}
+
+void parseRRule(const String &val, RRule &rr) {
+    int pos = 0;
+    while (pos < (int)val.length()) {
+        int semi = val.indexOf(';', pos);
+        String part = (semi < 0) ? val.substring(pos) : val.substring(pos, semi);
+        pos = (semi < 0) ? val.length() : semi + 1;
+
+        int eq = part.indexOf('=');
+        if (eq < 0) continue;
+        String key = part.substring(0, eq);
+        String v   = part.substring(eq + 1);
+        key.trim(); v.trim();
+
+        if (key == "FREQ") {
+            if      (v == "DAILY")   rr.freq = RRule::DAILY;
+            else if (v == "WEEKLY")  rr.freq = RRule::WEEKLY;
+            else if (v == "MONTHLY") rr.freq = RRule::MONTHLY;
+            else if (v == "YEARLY")  rr.freq = RRule::YEARLY;
+            // HOURLY/MINUTELY/SECONDLY stay NONE - nothing a person puts on
+            // a wall calendar, and expanding one would flood the list.
+        } else if (key == "INTERVAL") {
+            rr.interval = v.toInt();
+            if (rr.interval < 1) rr.interval = 1;
+        } else if (key == "COUNT") {
+            rr.count = v.toInt();
+        } else if (key == "UNTIL") {
+            bool dummy;
+            time_t u;
+            if (parseDtStart("", v, u, dummy)) rr.until = u;
+        } else if (key == "BYDAY") {
+            // Either a plain list ("MO,WE,FR") for weekly, or a single
+            // ordinal form ("3TU", "-1FR") for monthly/yearly.
+            int p = 0;
+            while (p < (int)v.length()) {
+                int comma = v.indexOf(',', p);
+                String tok = (comma < 0) ? v.substring(p) : v.substring(p, comma);
+                p = (comma < 0) ? v.length() : comma + 1;
+                tok.trim();
+                if (tok.length() < 2) continue;
+
+                int sign = 1, numStart = 0;
+                if (tok[0] == '+' || tok[0] == '-') {
+                    sign = (tok[0] == '-') ? -1 : 1;
+                    numStart = 1;
+                }
+                int digits = 0;
+                while (numStart + digits < (int)tok.length() && isdigit(tok[numStart + digits])) digits++;
+
+                if (digits > 0) {
+                    rr.byDayOrdinal = sign * tok.substring(numStart, numStart + digits).toInt();
+                    rr.byDayWeekday = weekdayCode(tok.substring(numStart + digits));
+                } else {
+                    int wd = weekdayCode(tok);
+                    if (wd >= 0) rr.byDayMask |= (uint8_t)(1 << wd);
+                }
+            }
+        }
+    }
+}
+
+// EXDATE holds the start times of occurrences the owner deleted one by one.
+// A modest fixed cap: past the cap a stale occurrence may reappear, which is
+// far better than the alternatives on a device with no heap to spare.
+static const int MAX_EXDATES = 24;
+
+void parseExDates(const String &params, const String &val, time_t *ex, int &exCount) {
+    int p = 0;
+    while (p < (int)val.length() && exCount < MAX_EXDATES) {
+        int comma = val.indexOf(',', p);
+        String tok = (comma < 0) ? val.substring(p) : val.substring(p, comma);
+        p = (comma < 0) ? val.length() : comma + 1;
+
+        time_t t;
+        bool dummy;
+        if (parseDtStart(params, tok, t, dummy)) ex[exCount++] = t;
+    }
+}
+
+// An occurrence is excluded if an EXDATE matches it. Compared by calendar day
+// rather than exactly: a feed may write its EXDATEs as dates while DTSTART
+// carries a time, or in a different timezone form, and an off-by-some-hours
+// mismatch would resurrect an event the owner deleted.
+bool isExcluded(time_t occ, const time_t *ex, int exCount) {
+    long occDay = (long)(occ / 86400);
+    for (int i = 0; i < exCount; i++) {
+        if (ex[i] == occ) return true;
+        if ((long)(ex[i] / 86400) == occDay) return true;
+    }
+    return false;
+}
+
 void insertSorted(CalEvent *out, int &count, int maxEvents, const CalEvent &e) {
     if (count >= maxEvents && e.start >= out[count - 1].start) return; // later than everything we keep
 
@@ -241,6 +399,142 @@ void insertSorted(CalEvent *out, int &count, int maxEvents, const CalEvent &e) {
         pos--;
     }
     out[pos] = e;
+}
+
+// True if an event with this UID already sits in `out` on the same calendar
+// day. A feed represents a single edited occurrence of a repeating event as
+// its own VEVENT carrying RECURRENCE-ID, alongside the unchanged master rule
+// - so without this check, "the 14th moved to 3pm" would show twice: once
+// from the override, once generated from the rule. Whichever of the two is
+// parsed first wins the slot, and the other is dropped.
+bool alreadyHave(const CalEvent *out, int count, uint32_t uidHash, time_t start) {
+    if (uidHash == 0) return false;
+    long day = (long)(start / 86400);
+    for (int i = 0; i < count; i++)
+        if (out[i].uidHash == uidHash && (long)(out[i].start / 86400) == day) return true;
+    return false;
+}
+
+// Walks a rule's occurrences in order and keeps the ones landing inside
+// [from, to]. Iteration always starts at DTSTART rather than skipping ahead
+// to the window, because COUNT is defined from the first occurrence - but
+// each step is integer date maths, and the caps below bound the worst case
+// (a decade-old daily event) to a few thousand trivial iterations.
+void expandRecurring(const CalEvent &base, const RRule &rr,
+                     const time_t *ex, int exCount,
+                     time_t from, time_t to,
+                     CalEvent *out, int &count, int maxEvents) {
+    if (rr.freq == RRule::NONE) return;
+
+    long  baseDay  = (long)(base.start / 86400);
+    long  timeOfDay = (long)(base.start - (time_t)baseDay * 86400);
+    int   by, bm, bd;
+    civilFromDays(baseDay, by, bm, bd);
+
+    long emitted = 0;   // counts occurrences against COUNT, window or not
+    time_t limit = to;
+    if (rr.until > 0 && rr.until < limit) limit = rr.until;
+
+    auto consider = [&](long day) -> bool {   // false = stop iterating
+        time_t occ = (time_t)day * 86400 + timeOfDay;
+        if (occ < base.start) return true;            // before the series began
+        if (occ > limit) return false;
+        emitted++;
+        if (rr.count > 0 && emitted > rr.count) return false;
+
+        if (occ >= from && !isExcluded(occ, ex, exCount) &&
+            !alreadyHave(out, count, base.uidHash, occ)) {
+            CalEvent e = base;
+            if (base.end > base.start) e.end = occ + (base.end - base.start);
+            e.start = occ;
+            insertSorted(out, count, maxEvents, e);
+        }
+        return true;
+    };
+
+    switch (rr.freq) {
+        case RRule::DAILY: {
+            static const int MAX_STEPS = 4000;
+            for (int i = 0; i < MAX_STEPS; i++)
+                if (!consider(baseDay + (long)i * rr.interval)) break;
+            break;
+        }
+
+        case RRule::WEEKLY: {
+            // Every day from the start, kept when it falls on one of the
+            // rule's weekdays in a week the interval actually covers. Weeks
+            // are counted from the Monday of DTSTART's week (WKST defaults to
+            // Monday and is not parsed).
+            uint8_t mask = rr.byDayMask;
+            if (mask == 0) mask = (uint8_t)(1 << weekdayFromDays(baseDay));  // "weekly" with no BYDAY = DTSTART's own day
+
+            int  baseWd    = weekdayFromDays(baseDay);
+            long baseMonday = baseDay - ((baseWd + 6) % 7);
+
+            static const int MAX_STEPS = 4000;
+            for (int i = 0; i < MAX_STEPS; i++) {
+                long day = baseDay + i;
+                int  wd  = weekdayFromDays(day);
+                if (!(mask & (1 << wd))) continue;
+
+                long monday = day - ((wd + 6) % 7);
+                if (((monday - baseMonday) / 7) % rr.interval != 0) continue;
+
+                if (!consider(day)) break;
+            }
+            break;
+        }
+
+        case RRule::MONTHLY:
+        case RRule::YEARLY: {
+            bool yearly = (rr.freq == RRule::YEARLY);
+            static const int MAX_STEPS_M = 600;   // 50 years of monthlies
+            static const int MAX_STEPS_Y = 100;
+            int steps = yearly ? MAX_STEPS_Y : MAX_STEPS_M;
+
+            for (int i = 0; i < steps; i++) {
+                int y = by, m = bm;
+                if (yearly) {
+                    y += i * rr.interval;
+                } else {
+                    long total = (long)(bm - 1) + (long)i * rr.interval;
+                    y = by + (int)(total / 12);
+                    m = (int)(total % 12) + 1;
+                }
+
+                long day;
+                if (rr.byDayOrdinal != 0 && rr.byDayWeekday >= 0) {
+                    // "the Nth <weekday> of the month", or "-1" for the last.
+                    int dim = daysInMonth(y, m);
+                    if (rr.byDayOrdinal > 0) {
+                        long first = daysFromCivil(y, m, 1);
+                        int  shift = (rr.byDayWeekday - weekdayFromDays(first) + 7) % 7;
+                        long target = first + shift + (long)(rr.byDayOrdinal - 1) * 7;
+                        if (target > daysFromCivil(y, m, dim)) continue;  // no 5th Tuesday this month
+                        day = target;
+                    } else {
+                        long last  = daysFromCivil(y, m, dim);
+                        int  shift = (weekdayFromDays(last) - rr.byDayWeekday + 7) % 7;
+                        long target = last - shift + (long)(rr.byDayOrdinal + 1) * 7;
+                        if (target < daysFromCivil(y, m, 1)) continue;
+                        day = target;
+                    }
+                } else {
+                    // Same day of the month as DTSTART. A 31st simply does
+                    // not occur in a 30-day month, which is what RFC 5545
+                    // says should happen (that occurrence is skipped, not
+                    // moved), and matches what Google shows.
+                    if (bd > daysInMonth(y, m)) continue;
+                    day = daysFromCivil(y, m, bd);
+                }
+
+                if (!consider(day)) break;
+            }
+            break;
+        }
+
+        default: break;
+    }
 }
 
 } // namespace
@@ -292,25 +586,51 @@ int fetchCalendarEvents(CalEvent *out, int maxEvents, const String &icsUrl, int 
     int count = 0;
     bool inEvent = false;
     CalEvent cur;
-    bool hasStart = false, hasRRule = false;
+    bool hasStart = false;
+
+    RRule  curRule;
+    time_t curEx[MAX_EXDATES];
+    int    curExCount = 0;
+
+    // Why events were dropped, reported at the end. "0 events" on a feed the
+    // owner knows has entries in it is otherwise unanswerable from the
+    // outside: every reason below looks identical from the serial log, and
+    // they call for completely different fixes (recurring events are not
+    // expanded at all, an unparsed DTSTART is a feed-format problem, and
+    // everything landing outside the window usually means a stale clock).
+    int seenEvents = 0, recurring = 0, skipNoStart = 0, skipBefore = 0, skipAfter = 0;
 
     String logical, raw;
     bool haveLogical = false;
 
     auto process = [&](const String &L) {
         if (L.startsWith("BEGIN:VEVENT")) {
-            inEvent = true; cur = CalEvent(); hasStart = false; hasRRule = false;
+            inEvent = true;
+            cur = CalEvent();
+            hasStart = false;
+            curRule = RRule();
+            curExCount = 0;
             return;
         }
         if (!inEvent) return;
 
         if (L.startsWith("END:VEVENT")) {
             inEvent = false;
-            if (hasStart && !hasRRule && cur.start >= from && cur.start <= to)
+            seenEvents++;
+            if (!hasStart) {
+                skipNoStart++;
+            } else if (curRule.freq != RRule::NONE) {
+                recurring++;
+                expandRecurring(cur, curRule, curEx, curExCount, from, to, out, count, maxEvents);
+            } else if (cur.start < from) {
+                skipBefore++;
+            } else if (cur.start > to) {
+                skipAfter++;
+            } else if (!alreadyHave(out, count, cur.uidHash, cur.start)) {
                 insertSorted(out, count, maxEvents, cur);
+            }
             return;
         }
-        if (L.startsWith("RRULE")) { hasRRule = true; return; }
 
         int colon = L.indexOf(':');
         if (colon < 0) return;
@@ -340,6 +660,11 @@ int fetchCalendarEvents(CalEvent *out, int maxEvents, const String &icsUrl, int 
             int semi = name.indexOf(';');
             String params = semi >= 0 ? name.substring(semi + 1) : "";
             if (parseDtStart(params, val, cur.start, cur.allDay)) hasStart = true;
+        } else if (name == "RRULE" || name.startsWith("RRULE;")) {
+            parseRRule(val, curRule);
+        } else if (name == "EXDATE" || name.startsWith("EXDATE;")) {
+            int semi = name.indexOf(';');
+            parseExDates(semi >= 0 ? name.substring(semi + 1) : "", val, curEx, curExCount);
         } else if (name == "DTEND" || name.startsWith("DTEND;")) {
             int semi = name.indexOf(';');
             String params = semi >= 0 ? name.substring(semi + 1) : "";
@@ -362,6 +687,10 @@ int fetchCalendarEvents(CalEvent *out, int maxEvents, const String &icsUrl, int 
     http.end();
     Serial.printf("[Cal] %d events in the next %d days (read %u bytes, free heap %u)\n",
                   count, windowDays, (unsigned)r.totalRead, (unsigned)ESP.getFreeHeap());
+    Serial.printf("[Cal]   %d VEVENTs seen (%d recurring, expanded); skipped %d undated, %d past, %d beyond window\n",
+                  seenEvents, recurring, skipNoStart, skipBefore, skipAfter);
+    if (seenEvents == 0)
+        Serial.println("[Cal]   no VEVENTs at all - the body was empty, truncated, or not an iCal feed");
     for (int i = 0; i < count; i++)
         Serial.printf("[Cal]   #%d start=%ld allDay=%d '%s' @'%s'\n",
                       i, (long)out[i].start, out[i].allDay, out[i].title, out[i].location);

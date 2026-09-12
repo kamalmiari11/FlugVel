@@ -36,7 +36,14 @@ struct CalEvent {
 // roughly [now, now + windowDays]. Fills `out` (up to maxEvents), sorted
 // ascending by start time.
 //
-// Recurring events (RRULE) are skipped for now.
+// Recurring events are expanded: FREQ (daily/weekly/monthly/yearly) with
+// INTERVAL, weekly-on-specific-days, monthly/yearly on either a day of the
+// month or an nth weekday ("third Tuesday", "last Friday"), bounded by UNTIL
+// or COUNT, with individually deleted occurrences honoured via EXDATE. Each
+// occurrence inside the window is returned as its own CalEvent. Rules using
+// BYMONTH / BYMONTHDAY lists, BYSETPOS or a non-Monday WKST are expanded on
+// their remaining fields rather than dropped, so such an event may appear
+// slightly more often than it should.
 //
 // Returns the number of events written (>= 0), -1 on failure (empty URL,
 // network / HTTP error), or -2 if the URL returned a web page rather than
