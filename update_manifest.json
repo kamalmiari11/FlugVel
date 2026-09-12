@@ -1,5 +1,5 @@
 {
-  "version": "1.0.20",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.20/flugvel_1_0_20.bin",
-  "notes": "Calendar now shows repeating events - weekly, monthly, nth-weekday and yearly rules are expanded instead of skipped"
+  "version": "1.0.21",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.21/flugvel_1_0_21.bin",
+  "notes": "Calendar source badge shows up to four characters, so numeric feed names like 2002 and 11 read properly"
 }
