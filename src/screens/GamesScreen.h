@@ -60,7 +60,14 @@ private:
     static const int FLAPPY_PIPE_GAP = 70;
     static const int FLAPPY_PIPE_WIDTH = 24;
     static const int FLAPPY_PIPE_SPACING = 110;
-    static const int FLAPPY_PLANE_SIZE = 12;
+    // The plane is drawn as the shared 16x16 airplane sprite (see
+    // ui/PlaneSprite), so its box is 16px - but the HITBOX stays at the 12px
+    // the game has always used. A silhouette is mostly empty space around
+    // the wings, so collisions against its full box would feel unfair, and
+    // more to the point widening it would quietly make every saved best
+    // score harder to beat than the one that set it.
+    static const int FLAPPY_PLANE_SIZE = 16;
+    static const int FLAPPY_HITBOX = 12;
 
     // The playable area's bottom bound leaves room for the persistent
     // bottom action-legend bar (this screen keeps it, unlike PlaneTracker -
@@ -107,7 +114,12 @@ private:
     static const unsigned long PADDLE_FRAME_MS = 33;   // ~30 fps
     static const int PADDLE_W = 46;
     static const int PADDLE_H = 6;
-    static const int PADDLE_PLANE_SIZE = 12;
+    // Same split as Flappy above: 16px sprite box for the shared airplane
+    // silhouette, 12px for the catch test, so a bigger drawing doesn't
+    // quietly make the game easier than it was for every best score
+    // already on record.
+    static const int PADDLE_PLANE_SIZE = 16;
+    static const int PADDLE_CATCH_SIZE = 12;
     static const int PADDLE_STEP = 14;                 // px moved per encoder detent
     static const int PADDLE_START_LIVES = 3;
     // Same bottom bound as Flappy - keeps play clear of the action-legend bar.
@@ -183,8 +195,12 @@ private:
     static const int AIRTRAFFIC_LANES = 4;
     static const unsigned long AIRTRAFFIC_FRAME_MS = 40;   // ~25fps, matches Flappy
     static const int AIRTRAFFIC_RUNWAY_X = 26;             // planes crossing this x, unlanded, are a miss
+    // Square, because the shared airplane sprite is (see ui/PlaneSprite).
+    // The width is unchanged, so the runway/miss test is exactly as it was;
+    // only the height grew, from a 10px triangle to a 16px silhouette,
+    // which a lane has plenty of room for.
     static const int AIRTRAFFIC_PLANE_W = 16;
-    static const int AIRTRAFFIC_PLANE_H = 10;
+    static const int AIRTRAFFIC_PLANE_H = 16;
     static const unsigned long AIRTRAFFIC_SPAWN_MS = 1400; // how often a new plane is attempted
     static const int AIRTRAFFIC_START_LIVES = 3;
     // Same bottom bound convention as the other games.

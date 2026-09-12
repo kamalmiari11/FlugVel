@@ -4,6 +4,7 @@
 #include "../network/CaptivePortal.h"
 #include "../ui/Theme.h"
 #include "../ui/UiChrome.h"
+#include "../ui/PlaneSprite.h"
 
 // ---- Game ideas, saved here so they survive even before being built ----
 // Only "playable" entries actually launch something on press; the rest
@@ -498,7 +499,8 @@ void GamesScreen::updateFlappy() {
     if (PIPE_SPEED > 5.5f) PIPE_SPEED = 5.5f;
     const int PLAY_TOP = 20; // just below the header
     const int planeX = 50;
-    const int half = FLAPPY_PLANE_SIZE / 2;
+    const int half = FLAPPY_HITBOX / 2;   // collision box, deliberately smaller
+                                          // than the drawn sprite - see the header
 
     _flappyPlaneVelocity += GRAVITY;
     if (_flappyPlaneVelocity > MAX_FALL_SPEED) _flappyPlaneVelocity = MAX_FALL_SPEED;
@@ -598,7 +600,9 @@ void GamesScreen::drawFlappyFrame() {
             _flappyLastDrawnPipeGapY[i] = _flappyPipeGapY[i];
         }
 
-        tft->fillRect(planeX - half, (int)_flappyPlaneY - half, FLAPPY_PLANE_SIZE, FLAPPY_PLANE_SIZE, theme.accent);
+        // Facing east: the plane holds station while the pipes scroll in
+        // from the right, so on screen it is flying right.
+        PlaneSprite::drawSmallCentered(tft, planeX, (int)_flappyPlaneY, PlaneSprite::E, theme.accent);
         _flappyLastDrawnPlaneY = _flappyPlaneY;
 
         tft->setTextSize(2);
@@ -648,7 +652,8 @@ void GamesScreen::drawFlappyFrame() {
     int newY = (int)_flappyPlaneY;
     if (oldY != newY) {
         tft->fillRect(planeX - half, oldY - half, FLAPPY_PLANE_SIZE, FLAPPY_PLANE_SIZE, theme.bg);
-        tft->fillRect(planeX - half, newY - half, FLAPPY_PLANE_SIZE, FLAPPY_PLANE_SIZE, theme.accent);
+        PlaneSprite::drawSmallCentered(tft, planeX, newY, PlaneSprite::E, theme.accent);
+
         _flappyLastDrawnPlaneY = _flappyPlaneY;
     }
 
@@ -724,7 +729,8 @@ void GamesScreen::updatePaddle() {
 
     const int playBottom = tft->height() - PADDLE_PLAY_BOTTOM_MARGIN;
     const int paddleTopY = playBottom - PADDLE_H - 2;
-    const int half = PADDLE_PLANE_SIZE / 2;
+    const int half = PADDLE_CATCH_SIZE / 2;   // catch box, deliberately smaller
+                                              // than the drawn sprite - see the header
 
     if (_paddlePlaneY + half >= paddleTopY) {
         bool xOverlap = (_paddlePlaneX + half > _paddleX - PADDLE_W / 2.0f) &&
@@ -764,6 +770,20 @@ static void fillRectClipped(TFT_eSPI *tft, int x, int y, int w, int h,
     if (y1 > y0) tft->fillRect(x, y0, w, y1 - y0, color);
 }
 
+// The falling plane, clipped to the same vertical band fillRectClipped()
+// keeps the erase boxes inside, so a fast drop can never paint the sprite
+// over the header or the action-legend bar. A bitmap can't be clipped by
+// shortening a rect the way a fill can, so this uses a viewport instead -
+// with vpDatum false, so the coordinates passed in stay panel-absolute.
+static void drawPaddlePlaneClipped(TFT_eSPI *tft, int cx, int cy, uint16_t color,
+                                   int clipTop, int clipBottom) {
+    if (clipBottom <= clipTop) return;
+    tft->setViewport(0, clipTop, tft->width(), clipBottom - clipTop, false);
+    // South: these are falling straight down the screen.
+    PlaneSprite::drawSmallCentered(tft, cx, cy, PlaneSprite::S, color);
+    tft->resetViewport();
+}
+
 // Small helper: repaint the lives pips (top-right of the play area). Clears
 // a fixed band wide enough for the starting life count so a lost pip is
 // actually erased.
@@ -792,8 +812,8 @@ void GamesScreen::drawPaddleFrame() {
         tft->fillRect((int)_paddleX - pw / 2, paddleTopY, pw, PADDLE_H, theme.accent2);
         _paddleLastDrawnX = _paddleX;
 
-        tft->fillRect((int)_paddlePlaneX - half, (int)_paddlePlaneY - half,
-                      PADDLE_PLANE_SIZE, PADDLE_PLANE_SIZE, theme.accent);
+        PlaneSprite::drawSmallCentered(tft, (int)_paddlePlaneX, (int)_paddlePlaneY,
+                                       PlaneSprite::S, theme.accent);
         _paddleLastDrawnPlaneX = _paddlePlaneX;
         _paddleLastDrawnPlaneY = _paddlePlaneY;
         _paddlePlaneJustSpawned = false;
@@ -830,8 +850,7 @@ void GamesScreen::drawPaddleFrame() {
         if (respawned || oldX != newX || oldY != newY) {
             fillRectClipped(tft, oldX - half, oldY - half, PADDLE_PLANE_SIZE, PADDLE_PLANE_SIZE,
                             clipTop, clipBot, theme.bg);
-            fillRectClipped(tft, newX - half, newY - half, PADDLE_PLANE_SIZE, PADDLE_PLANE_SIZE,
-                            clipTop, clipBot, theme.accent);
+            drawPaddlePlaneClipped(tft, newX, newY, theme.accent, clipTop, clipBot);
             _paddleLastDrawnPlaneX = _paddlePlaneX;
             _paddleLastDrawnPlaneY = _paddlePlaneY;
         }
@@ -1041,15 +1060,17 @@ void GamesScreen::drawSimonGameOver() {
 // what avoids needing any pairwise collision math - a plane only ever
 // interacts with the runway line, never with another plane.
 
-// Draws (or erases, if color == the background) one plane as a filled
-// triangle pointing left toward the runway: a nose at the front (left)
-// edge, a flat tail at the back (right) edge. Takes its size as parameters
-// rather than reading the class's private AIRTRAFFIC_PLANE_W/H constants
-// directly, same reasoning as fillRectClipped()/drawPaddleLives() above.
+// Draws (or erases, if color == the background) one plane, centered on its
+// lane. West-facing: these drift in from the right edge and fly left toward
+// the runway, so that is the way the silhouette points. Erasing works by
+// passing the background color - drawBitmap only paints the set bits, so it
+// clears exactly the pixels the same sprite put down at that position and
+// nothing around them. Takes its size as parameters rather than reading the
+// class's private AIRTRAFFIC_PLANE_W/H constants directly, same reasoning as
+// fillRectClipped()/drawPaddleLives() above.
 static void drawAirPlane(TFT_eSPI *tft, int x, int laneCenterY, int w, int h, uint16_t color) {
-    int noseX = x - w / 2;
-    int tailX = x + w / 2;
-    tft->fillTriangle(noseX, laneCenterY, tailX, laneCenterY - h / 2, tailX, laneCenterY + h / 2, color);
+    (void)w; (void)h; // the shared sprite is a fixed 16x16 - see ui/PlaneSprite
+    PlaneSprite::drawSmallCentered(tft, x, laneCenterY, PlaneSprite::W, color);
 }
 
 void GamesScreen::spawnAirTrafficPlane() {

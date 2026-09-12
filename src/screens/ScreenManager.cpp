@@ -3,6 +3,7 @@
 #include "../config/Config.h"
 #include "../ui/Theme.h"
 #include "../ui/UiChrome.h"
+#include "../ui/PlaneSprite.h"
 #include <Arduino.h>
 
 ScreenManager::ScreenManager(TFT_eSPI* display, int encoderBtnPin, int koButtonPin)
@@ -511,16 +512,15 @@ void ScreenManager::drawSwitcher() {
 void ScreenManager::drawScreenIcon(TFT_eSPI* tft, ScreenId id, int cx, int cy, uint16_t fg, uint16_t bg) {
     switch (id) {
         case ScreenId::Plane: {
-            // Paper-plane / "send" silhouette, nose pointing right, with a
-            // fold crease cut into the lower wing - the one detail that
-            // turns a plain triangle into a recognizable paper plane. Both
-            // crease lines run nose-to-base, so both endpoints sit on the
-            // triangle's own boundary and the whole line stays inside its
-            // fill (a segment between two points of a convex shape never
-            // leaves it) instead of spilling out past the bottom edge.
-            tft->fillTriangle(cx - 18, cy - 13, cx + 19, cy, cx - 18, cy + 13, fg);
-            tft->drawLine(cx + 19, cy, cx - 18, cy + 6, bg);
-            tft->drawLine(cx + 19, cy, cx - 18, cy + 8, bg);   // 2nd line for a ~2px crease
+            // The one exception to the hand-drawn-shapes rule above: this
+            // screen already HAS a canonical aircraft silhouette, the same
+            // one its flyover flies across the box (ui/PlaneSprite), so the
+            // tile shows that rather than a second, different-looking plane
+            // drawn from primitives. Fixed east - an icon is a label, not a
+            // live reading, so it always sits nose-right the way an icon in
+            // a strip of icons should, whatever heading is actually
+            // overhead at the time.
+            PlaneSprite::drawLargeCentered(tft, cx, cy, PlaneSprite::E, fg);
             break;
         }
 
