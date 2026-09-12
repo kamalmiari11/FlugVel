@@ -1,5 +1,5 @@
 {
-  "version": "1.0.17",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.17/flugvel_1_0_17.bin",
-  "notes": "One airplane silhouette everywhere - the games, the screen switcher icon and the plane screen now all fly the same aircraft"
+  "version": "1.0.18",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.18/flugvel_1_0_18.bin",
+  "notes": "Air Traffic is a real game now: land planes only once they reach the approach zone, steer the lane cursor yourself, and pay for a mistimed press"
 }
