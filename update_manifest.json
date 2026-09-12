@@ -1,5 +1,5 @@
 {
-  "version": "1.0.15",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.15/flugvel_1_0_15.bin",
-  "notes": "Hold the knob to open a screen switcher; only check for flights while the Plane screen is up"
+  "version": "1.0.16",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.16/flugvel_1_0_16.bin",
+  "notes": "Fix the plane flyover blanking out and flying past at the wrong speed, and animating twice when two flights land close together"
 }
