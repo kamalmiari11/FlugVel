@@ -410,6 +410,23 @@ void PlaneTrackerScreen::draw() {
 }
 
 void PlaneTrackerScreen::setFlight(const Flight& flight) {
+    // A different aircraft arriving mid-flyover: abandon the one currently
+    // crossing the box and let draw() start a fresh flyover for the new
+    // one instead. Without this the in-flight animation ran to completion
+    // and then called drawFlightInfo(), which reads _currentFlight - so it
+    // painted the NEW flight's details underneath the OLD flight's
+    // flyover, and because _lastDrawnFlight still held the old callsign
+    // the very next draw() immediately animated again and redrew the same
+    // info: the "animation, info, animation, info" double-up that shows up
+    // whenever two fetches land close together (a boot/reconnect prefetch
+    // overlapping a background poll, say). Clearing _lastDrawnFlight is
+    // what makes draw() treat this as a fresh flight and wipe the
+    // abandoned plane off the box before starting over.
+    if (_animInProgress && flight.callsign != _currentFlight.callsign) {
+        _animInProgress = false;
+        _lastDrawnFlight = "";
+    }
+
     _currentFlight = flight;
     _hasFlight = true;
     _fetching = false; // whatever fetch was in flight (if any) is done now
@@ -597,11 +614,25 @@ void PlaneTrackerScreen::startPlaneAnimation() {
     int halfW = _animBoxW / 2;
     int halfH = _animBoxH / 2;
 
-    // Distance from center to just outside whichever edge of the box the
-    // plane is approaching from.
+    // Distance from the center to the edge the plane actually LEAVES the
+    // box through - the FIRST boundary its path crosses, so the nearer of
+    // the two, not the farther. This used to take the max, which for any
+    // near-vertical or near-horizontal heading is the distance to an edge
+    // the path never reaches: a heading 10 degrees off north has a tiny
+    // horizontal component, so halfW/|vx| came out several times the width
+    // of the panel. The plane then started that absurdly far off-box, spent
+    // most of its frames invisible outside the viewport (the box just sat
+    // blank), and - because the frame count is clamped at 130 below - it
+    // covered the now-huge path at up to 3x the intended px-per-frame, so
+    // the short stretch that did cross the box blurred past. Headings near
+    // a diagonal happen to give similar values on both axes, which is why
+    // the speed looked right some of the time and wrong the rest.
     float travel = 0;
-    if (fabs(_animVx) > 0.0001f) travel = max(travel, (float)halfW / fabs(_animVx));
-    if (fabs(_animVy) > 0.0001f) travel = max(travel, (float)halfH / fabs(_animVy));
+    if (fabs(_animVx) > 0.0001f) travel = (float)halfW / fabs(_animVx);
+    if (fabs(_animVy) > 0.0001f) {
+        float vertical = (float)halfH / fabs(_animVy);
+        travel = (travel > 0.0f) ? min(travel, vertical) : vertical;
+    }
     travel += PLANE_W; // clear margin so the bitmap starts/ends fully outside the box
 
     float startX = cx - _animVx * travel;

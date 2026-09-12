@@ -242,7 +242,19 @@ void doFlightCheck(std::function<void(const char *)> onProviderTry = nullptr) {
 
     Flight newFlight;
     bool apiFailed = false;
-    if (fetchNearestFlight(newFlight, userLat, userLon, &apiFailed, onProviderTry)) {
+    bool found = fetchNearestFlight(newFlight, userLat, userLon, &apiFailed, onProviderTry);
+
+    // Same altitude floor the background path applies (see fetchFlightBG())
+    // - without it the boot/reconnect prefetch was the one code path that
+    // could put a helicopter or an aircraft on approach on screen, only for
+    // the next background poll to drop it again a minute later.
+    if (found && flightBelowFloor(newFlight)) {
+        Serial.printf("[Main] Ignoring %s at %.0f m - below the configured floor\n",
+                      newFlight.callsign.c_str(), newFlight.altitude);
+        found = false;
+    }
+
+    if (found) {
         currentFlight = newFlight;
 
         if (planeScreen) {
