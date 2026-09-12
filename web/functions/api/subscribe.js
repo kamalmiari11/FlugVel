@@ -1,5 +1,6 @@
 import { json } from "../_lib/auth.js";
-import { WELCOME_EMAIL_SUBJECT, WELCOME_EMAIL_TEXT, WELCOME_EMAIL_HTML } from "../_lib/welcome-email.js";
+import { WELCOME_EMAIL_SUBJECT, welcomeEmailText, welcomeEmailHtml } from "../_lib/welcome-email.js";
+import { unsubscribeUrl } from "../_lib/unsubscribe-token.js";
 
 // A deliberately loose but real email check - not trying to fully validate
 // RFC 5322, just catching "clearly not an email" (empty, no @, no dot after
@@ -31,11 +32,13 @@ const RATE_LIMIT_WINDOW_MINUTES = 10;
 // its shared sandbox sender, which only allows sending to the account's own
 // email address. See DEPLOY.md.
 //
-// There's no unsubscribe link in the welcome email yet - Resend's own
-// suppression-list handling needs a verified sending domain, which is now
-// in place, but the list is small enough that "reply to this email and
-// I'll remove you" is still a fine stand-in. Revisit before this list gets
-// much bigger.
+// Every email carries a signed unsubscribe link (see
+// _lib/unsubscribe-token.js) plus the List-Unsubscribe headers that make
+// Gmail, Apple Mail and Outlook show their own native unsubscribe control
+// next to the sender. Those headers matter beyond convenience: bulk senders
+// without them are treated more harshly by spam filtering, and a recipient
+// who can't find an unsubscribe reaches for "report spam" instead, which is
+// far more damaging to a sending domain than an unsubscribe ever is.
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -109,6 +112,12 @@ export async function onRequestPost(context) {
 
   if (!alreadySubscribed && env.RESEND_API_KEY) {
     try {
+      // Built from the request's own origin rather than a hardcoded domain,
+      // so preview deployments and local development produce links that
+      // point at themselves instead of at production.
+      const origin = new URL(request.url).origin;
+      const unsubUrl = await unsubscribeUrl(origin, email, env.JWT_SECRET);
+
       await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -119,8 +128,16 @@ export async function onRequestPost(context) {
           from: env.RESEND_FROM || "FlugVel <onboarding@resend.dev>",
           to: email,
           subject: WELCOME_EMAIL_SUBJECT,
-          text: WELCOME_EMAIL_TEXT,
-          html: WELCOME_EMAIL_HTML,
+          text: welcomeEmailText(unsubUrl),
+          html: welcomeEmailHtml(unsubUrl),
+          headers: {
+            // RFC 8058 one-click. The pair has to appear together: the
+            // POST header is what tells a client it may unsubscribe without
+            // sending the user anywhere, and without it Gmail treats the
+            // URL as an ordinary link to open in a browser.
+            "List-Unsubscribe": `<${unsubUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
         }),
       });
     } catch {
