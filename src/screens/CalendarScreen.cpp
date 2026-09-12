@@ -269,9 +269,33 @@ void CalendarScreen::drawList() {
         tft->setCursor(rowX + 10, y + 15);
         tft->print(tl.length() ? tl : String("all day"));
 
-        // title, size-2, fills the rest
+        // With more than one calendar in play, say which one an event came
+        // from - otherwise a merged agenda gives no way to tell a work
+        // meeting from a personal one. A single feed needs no marker.
+        //
+        // Up to four characters of the name, not one: names are just as
+        // often numbers as words (a year, a course code, a house number),
+        // and cutting "2002" and "11" down to "2" and "1" told the two
+        // apart by luck rather than by design. Four fits comfortably at
+        // size 1 and covers a short name whole; anything longer is a label
+        // that was never going to fit a badge.
+        String mark;
+        if (CalendarFeeds::usableCount() > 1) {
+            const String &fname = CalendarFeeds::at(e.feedIndex).name;
+            mark = fname.substring(0, 4);
+            mark.trim();
+            mark.toUpperCase();
+        }
+
+        tft->setTextSize(1);
+        int markW = mark.length() ? tft->textWidth(mark) : 0;
+
+        // title, size-2, fills what the marker leaves. The title used to be
+        // measured against the full row width and so ran underneath the
+        // marker - only invisible before because every marker was one
+        // character wide.
         const int titleX = rowX + 78;
-        const int maxW = rowW - 78 - 6;
+        const int maxW = rowW - 78 - 6 - (markW ? markW + 8 : 0);
         tft->setTextSize(2);
         tft->setTextColor(sel ? t.selectFg : t.fg, sel ? t.selectBg : t.bg);
         String title = e.title[0] ? e.title : "(no title)";
@@ -280,19 +304,12 @@ void CalendarScreen::drawList() {
         tft->setCursor(titleX, y + (ROW_H - 2 - 16) / 2);
         tft->print(title);
 
-        // With more than one calendar in play, say which one an event came
-        // from - otherwise a merged agenda gives no way to tell a work
-        // meeting from a personal one. A single feed needs no marker.
-        if (CalendarFeeds::usableCount() > 1) {
-            const String &fname = CalendarFeeds::at(e.feedIndex).name;
-            if (fname.length()) {
-                char mark[2] = { (char)toupper(fname[0]), 0 };
-                tft->setTextSize(1);
-                tft->setTextDatum(MR_DATUM);
-                tft->setTextColor(sel ? t.selectFg : t.fgDim, sel ? t.selectBg : t.bg);
-                tft->drawString(mark, rowX + rowW - 6, y + (ROW_H - 2) / 2);
-                tft->setTextDatum(TL_DATUM);
-            }
+        if (mark.length()) {
+            tft->setTextSize(1);
+            tft->setTextDatum(MR_DATUM);
+            tft->setTextColor(sel ? t.selectFg : t.fgDim, sel ? t.selectBg : t.bg);
+            tft->drawString(mark, rowX + rowW - 6, y + (ROW_H - 2) / 2);
+            tft->setTextDatum(TL_DATUM);
         }
     }
 
