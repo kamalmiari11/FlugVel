@@ -37,15 +37,14 @@ public:
     // last flight's info stuck on screen forever.
     void clearFlight();
 
-    // Flight-checking is gated to only run while this screen is actually
-    // showing (see main.cpp's backgroundNetworkTask()), which fires an
-    // immediate fetch the moment that happens. Call this true right as that
-    // fetch starts and false once it resolves (setFlight()/clearFlight()
-    // already do the latter), so draw() can show a bouncing-plane loading
-    // indicator instead of the bounce-text "nothing overhead" state for
-    // that first request - without it the screen would look blank/frozen
-    // for however long the fetch takes. Has no visible effect while a
-    // flight is already showing.
+    // Whether a flight lookup is outstanding right now. loop() pushes this
+    // in every iteration from the real flag the fetching code sets, so it is
+    // never this screen's own guess. While it is true and there is nothing
+    // to show, draw() puts up a bouncing-plane loading indicator instead of
+    // the bounce-text "nothing overhead" state, so the screen doesn't look
+    // blank or frozen for however long the request takes. Has no visible
+    // effect while a flight is already showing - that data just stays up
+    // until a result replaces it.
     void setFetching(bool fetching);
 
     // Animation control

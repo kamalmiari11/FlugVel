@@ -457,6 +457,12 @@ void checkQuoteOfTheDayBG() {
 // adjustable 5-3600s in Settings > API - see Config.cpp) and the midnight
 // quote check promptly without spinning the CPU.
 void backgroundNetworkTask(void* pvParameters) {
+    // How long the Plane screen has been the one showing since the last
+    // flight fetch. See the flight-check block below for why the interval is
+    // measured in showing time rather than against the clock.
+    unsigned long shownMs    = 0;
+    unsigned long lastPollAt = millis();
+
     // How often this unit phones home to the dashboard (see
     // src/api/checkin_api.cpp + web/functions/api/devices/checkin.js).
     // 30s keeps "last seen" feeling live without troubling D1's free-tier
@@ -476,21 +482,35 @@ void backgroundNetworkTask(void* pvParameters) {
             // safe to call from this task same as the config screen already
             // does from the main task). Every other screen makes zero
             // flight-API calls no matter how long it's left showing, which
-            // is most of a device's uptime for most users. This also gives
-            // an immediate fetch "for free" the moment you switch onto the
-            // Plane screen: lastFlightFetchAt was last touched by whichever
-            // path fetched last - this task, or a blocking prefetch - so by
-            // the time you come back the interval below has almost always
-            // already elapsed, and no extra "just switched in" bookkeeping
-            // is needed. The plane screen shows a loading indicator while
-            // that fetch is outstanding (flightFetchInProgress, pushed to it
-            // from loop()).
-            if (ScreenManager::showingId() == ScreenId::Plane) {
+            // is most of a device's uptime for most users.
+            //
+            // The interval counts SHOWING time, not wall-clock time, which
+            // is what shownMs accumulates. Measuring it against the clock
+            // instead meant the interval had always already elapsed by the
+            // time you came back from anywhere, so every single return to
+            // the screen spent an API call and replayed a flyover - one full
+            // lap of a seven-screen cycle takes minutes, far longer than the
+            // 60s interval. Now arriving costs nothing: the last flight is
+            // simply still on screen, and the next refresh lands once you
+            // have actually been looking at it for an interval. Time spent
+            // away is not lost either, since shownMs is only reset by a
+            // fetch - so short hops on and off still add up to a refresh
+            // rather than restarting the count each time.
+            bool showingPlane = (ScreenManager::showingId() == ScreenId::Plane);
+            if (showingPlane) {
+                shownMs += (now - lastPollAt);
+
                 // Read the current setting every iteration (cheap int read)
                 // so a change made in Settings takes effect on the very
                 // next check instead of requiring a reboot.
                 unsigned long flightCheckIntervalMs = (unsigned long)portal.getFlightCheckIntervalSec() * 1000UL;
-                if (now - lastFlightFetchAt >= flightCheckIntervalMs) {
+
+                // lastFlightFetchAt == 0 means nothing has ever been fetched
+                // (the boot prefetch failed, or there was no network then) -
+                // there is nothing to keep showing, so don't make the screen
+                // sit empty for an interval before trying.
+                if (shownMs >= flightCheckIntervalMs || lastFlightFetchAt == 0) {
+                    shownMs = 0;
                     lastFlightFetchAt = now;
                     fetchFlightBG();
                 }
@@ -507,6 +527,12 @@ void backgroundNetworkTask(void* pvParameters) {
                 sendCheckin(loc);
             }
         }
+
+        // Outside the wifiConnected block on purpose: this marks when the
+        // poll ran, not when it did any work. Left inside, a long outage
+        // would come back as one enormous delta and count as a whole
+        // interval of screen time the moment the network returned.
+        lastPollAt = millis();
 
         vTaskDelay(pdMS_TO_TICKS(500));
     }
