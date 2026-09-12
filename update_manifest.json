@@ -1,5 +1,5 @@
 {
-  "version": "1.0.19",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.19/flugvel_1_0_19.bin",
-  "notes": "Fix the plane screen fetching twice shortly after boot, and showing a loading indicator when nothing was being fetched"
+  "version": "1.0.20",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.20/flugvel_1_0_20.bin",
+  "notes": "Calendar now shows repeating events - weekly, monthly, nth-weekday and yearly rules are expanded instead of skipped"
 }
