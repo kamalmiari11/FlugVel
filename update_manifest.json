@@ -1,5 +1,5 @@
 {
-  "version": "1.0.16",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.16/flugvel_1_0_16.bin",
-  "notes": "Fix the plane flyover blanking out and flying past at the wrong speed, and animating twice when two flights land close together"
+  "version": "1.0.17",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.17/flugvel_1_0_17.bin",
+  "notes": "One airplane silhouette everywhere - the games, the screen switcher icon and the plane screen now all fly the same aircraft"
 }
