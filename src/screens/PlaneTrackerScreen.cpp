@@ -141,14 +141,12 @@ void PlaneTrackerScreen::init() {
     _showAnimation = false;
     _lastDrawnFlight = "";  // Force redraw on init
 
-    // Flight-checking only runs while this screen is showing (see
-    // backgroundNetworkTask() in main.cpp), which fires an immediate fetch
-    // the instant that becomes true - so landing here with nothing to show
-    // yet means that fetch is now in flight. Skip the indicator if a flight
-    // is already showing (e.g. the boot-time prefetch already found one, or
-    // we're switching back in before the last result went stale) - that
-    // data just keeps showing until the fresh result replaces it.
-    _fetching = !_hasFlight;
+    // NOTE: _fetching is deliberately not set here. It used to be guessed as
+    // "nothing to show yet, so a fetch must be running", which was wrong
+    // whenever the interval had not actually elapsed - the screen showed a
+    // loading indicator for up to a minute with no request outstanding at
+    // all. loop() now pushes the real flag in (setFetching), so this screen
+    // only ever claims to be loading when something genuinely is.
 
     // Compute the border box from the actual panel size and draw it once
     // per visit to this screen. It is never redrawn again after this - see

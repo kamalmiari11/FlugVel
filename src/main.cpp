@@ -86,8 +86,25 @@ CalendarScreen* calendarScreen = nullptr;
 
 // ============ FLIGHT TRACKING ============
 Flight currentFlight;
-unsigned long lastFlightCheck = 0;
-bool flightCheckInProgress = false;
+
+// When the last flight fetch STARTED, by any path - the boot/reconnect
+// prefetch as well as the background task's recurring check. The background
+// task spaces its checks off this, so a blocking prefetch counts as a real
+// check and the next background one is a full interval later.
+//
+// This used to be a local in backgroundNetworkTask() that only the task
+// itself ever touched, which quietly broke the boot prefetch's priming: the
+// task's timer still read zero afterwards, so if the device had been up for
+// longer than the interval by the time it connected (a minute on the
+// captive-portal setup screen does it), its very first poll fired a second
+// fetch seconds after the prefetch's - two lookups back to back, and two
+// flyovers on the plane screen.
+volatile unsigned long lastFlightFetchAt = 0;
+
+// True while a flight lookup is actually in progress. The plane screen's
+// loading indicator is driven from this (see loop()), so it means "a request
+// is genuinely outstanding" rather than the screen's own guess.
+volatile bool flightFetchInProgress = false;
 
 // ============ LOCATION DATA ============
 float userLat = 52.5450;  // Default, will be overridden
@@ -240,9 +257,15 @@ static bool flightBelowFloor(const Flight &f) {
 void doFlightCheck(std::function<void(const char *)> onProviderTry = nullptr) {
     Serial.println("[Main] Fetching flight data...");
 
+    // Counts as a real check for the background task's spacing, so it does
+    // not immediately do another one of its own.
+    lastFlightFetchAt = millis();
+    flightFetchInProgress = true;
+
     Flight newFlight;
     bool apiFailed = false;
     bool found = fetchNearestFlight(newFlight, userLat, userLon, &apiFailed, onProviderTry);
+    flightFetchInProgress = false;
 
     // Same altitude floor the background path applies (see fetchFlightBG())
     // - without it the boot/reconnect prefetch was the one code path that
@@ -284,9 +307,12 @@ void doFlightCheck(std::function<void(const char *)> onProviderTry = nullptr) {
 void fetchFlightBG() {
     Serial.println("[BG] Fetching flight data...");
 
+    flightFetchInProgress = true;
+
     Flight newFlight;
     bool apiFailed = false;
     bool found = fetchNearestFlight(newFlight, userLat, userLon, &apiFailed);
+    flightFetchInProgress = false;
 
     // Filtered here, on the network task, rather than at display time - a
     // rejected aircraft should read as "nothing overhead" and let the
@@ -329,14 +355,11 @@ void applyFlightResult() {
 
     if (!ready) return;
 
-    // Whatever the outcome below, the fetch that was in flight has now
-    // resolved - if PlaneTrackerScreen was showing its bouncing-plane
-    // loading indicator for it (see PlaneTrackerScreen::init()/
-    // setFetching()), it's done regardless of found/apiFailed. setFlight()/
-    // clearFlight() below also clear it themselves, but apiFailed hits
-    // neither of those, so without this line a fetch that fails on every
-    // provider would leave the loading indicator stuck on screen forever.
-    if (planeScreen) planeScreen->setFetching(false);
+    // NOTE: nothing clears the loading indicator here any more. loop()
+    // pushes flightFetchInProgress into the screen every iteration, so it
+    // goes out the moment the request actually ends - including the
+    // all-providers-failed case, which reaches neither setFlight() nor
+    // clearFlight() below.
 
     if (found) {
         currentFlight = flight;
@@ -434,8 +457,6 @@ void checkQuoteOfTheDayBG() {
 // adjustable 5-3600s in Settings > API - see Config.cpp) and the midnight
 // quote check promptly without spinning the CPU.
 void backgroundNetworkTask(void* pvParameters) {
-    unsigned long bgLastFlightCheck = 0;
-
     // How often this unit phones home to the dashboard (see
     // src/api/checkin_api.cpp + web/functions/api/devices/checkin.js).
     // 30s keeps "last seen" feeling live without troubling D1's free-tier
@@ -457,19 +478,20 @@ void backgroundNetworkTask(void* pvParameters) {
             // flight-API calls no matter how long it's left showing, which
             // is most of a device's uptime for most users. This also gives
             // an immediate fetch "for free" the moment you switch onto the
-            // Plane screen: bgLastFlightCheck was last touched (if ever)
-            // during some earlier visit, so by the time you come back the
-            // interval below has almost always already elapsed - no extra
-            // "just switched in" bookkeeping needed. (See
-            // PlaneTrackerScreen::init(), which shows a loading indicator
-            // for exactly that first fetch.)
+            // Plane screen: lastFlightFetchAt was last touched by whichever
+            // path fetched last - this task, or a blocking prefetch - so by
+            // the time you come back the interval below has almost always
+            // already elapsed, and no extra "just switched in" bookkeeping
+            // is needed. The plane screen shows a loading indicator while
+            // that fetch is outstanding (flightFetchInProgress, pushed to it
+            // from loop()).
             if (ScreenManager::showingId() == ScreenId::Plane) {
                 // Read the current setting every iteration (cheap int read)
                 // so a change made in Settings takes effect on the very
                 // next check instead of requiring a reboot.
                 unsigned long flightCheckIntervalMs = (unsigned long)portal.getFlightCheckIntervalSec() * 1000UL;
-                if (now - bgLastFlightCheck >= flightCheckIntervalMs) {
-                    bgLastFlightCheck = now;
+                if (now - lastFlightFetchAt >= flightCheckIntervalMs) {
+                    lastFlightFetchAt = now;
                     fetchFlightBG();
                 }
             }
@@ -515,11 +537,10 @@ void prefetchOnConnect(BootScreen::BootProgressFn progress) {
         dashboardScreen->update();                            // actually run that fetch now
     }
 
-    // Prime the flight-check timer so loop()'s normal interval starts
-    // counting from now, instead of firing again immediately after boot.
+    // doFlightCheck() primes lastFlightFetchAt itself, so the background
+    // task counts this as a real check and will not fire another one moments
+    // after boot.
     tick(0.50f, "Scanning for flights...");
-    lastFlightCheck = millis();
-    flightCheckInProgress = true;
     {
         int provIdx = 0;
         doFlightCheck([&](const char *name) {
@@ -529,7 +550,6 @@ void prefetchOnConnect(BootScreen::BootProgressFn progress) {
             tick(f, String("Checking ") + name + "...");
         });
     }
-    flightCheckInProgress = false;
 
     // Populate the quote of the day immediately too, so it's not blank the
     // first time the plane screen is shown - the background task's
@@ -866,7 +886,7 @@ void loop() {
             // out the rest of the interval.
             if (planeScreen) planeScreen->clearFlight();
             currentFlight = Flight();
-            lastFlightCheck = 0;
+            lastFlightFetchAt = 0;   // next background poll refetches straight away
 
             Serial.printf("[Main] Location changed to %s (%.4f, %.4f) - refetching\n",
                           portal.getCity().c_str(), userLat, userLon);
@@ -931,6 +951,13 @@ void loop() {
     // single loop iteration without any interval check needed here.
     applyFlightResult();
     applyQuoteResult();
+
+    // Keep the plane screen's loading indicator honest: it shows only while
+    // a lookup is genuinely outstanding, on whichever task started it. Cheap
+    // enough to push every iteration (a bool compare inside the setter), and
+    // doing it here rather than from the background task keeps every screen
+    // touch on the main task, same as every other result-applying call above.
+    if (planeScreen) planeScreen->setFetching(flightFetchInProgress);
 
     // ---- Screen Manager Update & Draw ----
     if (screenManager && wifiConnected) {
