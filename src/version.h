@@ -5,4 +5,4 @@
 // "version" field in the hosted manifest JSON to decide whether an update
 // is actually newer - so this string has to change for the update prompt
 // to ever trigger.
-#define FIRMWARE_VERSION "1.0.14"
+#define FIRMWARE_VERSION "1.0.15"
