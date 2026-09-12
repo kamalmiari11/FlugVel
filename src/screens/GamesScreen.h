@@ -187,14 +187,47 @@ private:
 
     // ---- Air Traffic ----
     // Planes drift in from the right edge, one per lane, toward the runway
-    // at the left. Turn the knob to cycle the selection between whichever
-    // lanes currently have a plane in them; press to clear (land) the
-    // selected one for a point. A plane that reaches the runway unlanded
-    // costs a life instead of ending the run outright - three lost planes
-    // ends it. Speed ramps up with score, same idea as Paddle Catch.
+    // at the left. The knob moves a cursor between the four lanes and KO
+    // lands whatever is in the selected lane - but only once that plane has
+    // crossed into the approach zone just short of the runway. A plane that
+    // reaches the runway unlanded costs a life; three lost planes ends the
+    // run. Speed ramps up with score, same idea as Paddle Catch.
+    //
+    // Those two rules - a landing window, and a cursor that stays where the
+    // player put it - are what make this a game rather than a button to
+    // mash. It used to be neither: the cursor auto-followed every plane
+    // (a new plane grabbed it, and landing one handed it straight to the
+    // next occupied lane), a plane could be landed anywhere on screen
+    // including the instant it appeared, and a press with nothing selected
+    // did nothing at all. Holding KO down therefore scored forever without
+    // the knob being touched once.
     static const int AIRTRAFFIC_LANES = 4;
     static const unsigned long AIRTRAFFIC_FRAME_MS = 40;   // ~25fps, matches Flappy
     static const int AIRTRAFFIC_RUNWAY_X = 26;             // planes crossing this x, unlanded, are a miss
+
+    // Right-hand edge of the approach zone: a plane's nose has to be left of
+    // this to be landable, so the strip between here and the runway line is
+    // the window the player is actually aiming at. ~90px wide, which is a
+    // comfortable 1.8s at the starting speed and still a fair ~0.7s once the
+    // ramp has maxed out.
+    static const int AIRTRAFFIC_APPROACH_X = AIRTRAFFIC_RUNWAY_X + 90;
+
+    // What a press that lands nothing costs - pressing on an empty lane, or
+    // on a plane that has not reached the approach zone yet (a go-around).
+    // Points rather than a life: mashing bleeds the score away, so it is
+    // strictly worse than playing properly, but one slip late in a good run
+    // does not end it. The score floors at zero, never goes negative.
+    static const int AIRTRAFFIC_BAD_PRESS_PENALTY = 2;
+
+    // Spawn interval shrinks with score (floored at MIN) on top of the
+    // existing speed ramp, so late-game pressure comes from lanes filling up
+    // at once - which is when choosing an order actually matters - and not
+    // only from everything moving faster.
+    static const unsigned long AIRTRAFFIC_SPAWN_MIN_MS = 600;
+    static const unsigned long AIRTRAFFIC_SPAWN_STEP_MS = 40;  // faster per point scored
+
+    // How long a "too early" / "empty lane" note stays up after a bad press.
+    static const unsigned long AIRTRAFFIC_MSG_MS = 700;
     // Square, because the shared airplane sprite is (see ui/PlaneSprite).
     // The width is unchanged, so the runway/miss test is exactly as it was;
     // only the height grew, from a 10px triangle to a 16px silhouette,
@@ -211,7 +244,11 @@ private:
     bool  _airLastDrawnActive[AIRTRAFFIC_LANES];
     float _airLastDrawnX[AIRTRAFFIC_LANES];
 
-    int _airSelectedLane;           // -1 when no lane currently has a plane to select
+    // Always a real lane, 0..AIRTRAFFIC_LANES-1, whether or not it holds a
+    // plane - it is the player's cursor, not a pointer to an aircraft, and
+    // nothing moves it but the knob. Drawn as a marker at the lane's left
+    // edge so an empty selected lane is still visible.
+    int _airSelectedLane;
     int _airLastDrawnSelectedLane;
 
     int _airScore;
@@ -223,6 +260,13 @@ private:
     unsigned long _lastAirFrame;
     unsigned long _airLastSpawnAt;
     bool _airFirstFrame;
+
+    // Feedback note for a bad press ("TOO EARLY" / "EMPTY LANE"). Held as a
+    // pointer to a string literal plus an expiry; the frame loop paints it
+    // once and erases it once, so it costs nothing while nothing is showing.
+    const char*   _airMsg;
+    unsigned long _airMsgUntil;
+    bool          _airMsgDrawn;
 
     void startAirTraffic();
     void updateAirTraffic();

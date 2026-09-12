@@ -38,9 +38,11 @@ static const GameEntry GAME_ENTRIES[] = {
     { "Simon Says", true },
 
     // Air Traffic - IMPLEMENTED. Planes drift in from the right, one per
-    // lane; turn the knob to select which lane's plane to clear, press to
-    // land it. A plane that reaches the runway unlanded costs a life -
-    // three losses ends the run.
+    // lane; turn the knob to move a cursor between the four lanes and press
+    // to land the plane in the selected one - but only once it has reached
+    // the approach zone short of the runway. Landing early, or pressing on
+    // an empty lane, costs points. A plane that reaches the runway unlanded
+    // costs a life - three losses ends the run.
     { "Air Traffic", true },
 };
 static const int GAME_COUNT = sizeof(GAME_ENTRIES) / sizeof(GAME_ENTRIES[0]);
@@ -68,9 +70,10 @@ GamesScreen::GamesScreen(TFT_eSPI* display, CaptivePortal* portal)
       _simonLength(0), _simonShowIndex(0), _simonShowLit(false), _simonPhaseStart(0),
       _simonInputIndex(0), _simonSelectedPad(0), _simonLastDrawnSelectedPad(-1),
       _simonLastDrawnInputIndex(-1), _simonScore(0), _simonBest(0),
-      _airSelectedLane(-1), _airLastDrawnSelectedLane(-1),
+      _airSelectedLane(0), _airLastDrawnSelectedLane(-1),
       _airScore(0), _airLives(0), _airBest(0), _airLastDrawnScore(-1), _airLastDrawnLives(-1),
-      _lastAirFrame(0), _airLastSpawnAt(0), _airFirstFrame(true)
+      _lastAirFrame(0), _airLastSpawnAt(0), _airFirstFrame(true),
+      _airMsg(nullptr), _airMsgUntil(0), _airMsgDrawn(false)
 {
     for (int i = 0; i < FLAPPY_PIPE_COUNT; i++) {
         _flappyPipeX[i] = 0;
@@ -437,18 +440,32 @@ void GamesScreen::onButtonPress() {
             _state = STATE_SIMON_SHOWING;
             break;
 
-        case STATE_AIRTRAFFIC_PLAYING:
-            if (_airSelectedLane >= 0 && _airPlaneActive[_airSelectedLane]) {
+        case STATE_AIRTRAFFIC_PLAYING: {
+            // Three outcomes, and only one of them scores: a plane in the
+            // selected lane that has reached the approach zone lands; a
+            // plane still too far out is waved off; an empty lane is just a
+            // wasted press. The two failures cost points (see the header for
+            // why points and not a life), which is what makes mashing KO
+            // strictly worse than watching and timing. The cursor stays
+            // where the player left it in every case - the just-cleared
+            // lane's own erase happens on the next updateAirTraffic() frame
+            // tick via its dirty-rect diff.
+            bool hasPlane = _airPlaneActive[_airSelectedLane];
+            bool inZone = hasPlane &&
+                          (_airPlaneX[_airSelectedLane] - AIRTRAFFIC_PLANE_W / 2) <= AIRTRAFFIC_APPROACH_X;
+
+            if (inZone) {
                 _airPlaneActive[_airSelectedLane] = false;
                 _airScore++;
-                // Hand the cursor to another lane that still has a plane,
-                // if any - same skip-and-wrap helper the knob uses. The
-                // just-cleared lane's own erase happens on the next
-                // updateAirTraffic() frame tick via its dirty-rect diff.
-                int next = airLaneStep(_airSelectedLane, +1);
-                _airSelectedLane = _airPlaneActive[next] ? next : -1;
+            } else {
+                _airScore -= AIRTRAFFIC_BAD_PRESS_PENALTY;
+                if (_airScore < 0) _airScore = 0;
+                _airMsg = hasPlane ? "TOO EARLY" : "EMPTY LANE";
+                _airMsgUntil = millis() + AIRTRAFFIC_MSG_MS;
+                _airMsgDrawn = false;   // forces a repaint even if a note is already up
             }
             break;
+        }
 
         case STATE_AIRTRAFFIC_GAMEOVER:
             startAirTraffic();
@@ -1073,6 +1090,28 @@ static void drawAirPlane(TFT_eSPI *tft, int x, int laneCenterY, int w, int h, ui
     PlaneSprite::drawSmallCentered(tft, x, laneCenterY, PlaneSprite::W, color);
 }
 
+// What color a plane is drawn in, which is the game's whole read-at-a-glance
+// state: dim while it is still too far out to land, full brightness once it
+// crosses the approach gate, and accent when it is the one the cursor is on.
+// A player should be able to tell "can I press now?" from the sprite alone,
+// without measuring it against the dashed line.
+// Takes the two booleans rather than the geometry so it stays a plain file-
+// static helper, same as the drawing helpers above - the caller is a member
+// function and already has the private constants to hand.
+static uint16_t airPlaneColor(const Theme &theme, bool landable, bool selected) {
+    if (selected) return theme.accent;
+    return landable ? theme.fg : theme.fgDim;
+}
+
+// The lane cursor: a small bar in the strip left of the runway line, which
+// no plane ever reaches (they are removed AT the runway), so it can sit
+// there permanently without ever colliding with one. This is what makes an
+// empty selected lane visible - without it the player would have no idea
+// where the cursor was until a plane happened to arrive under it.
+static void drawAirLaneCursor(TFT_eSPI *tft, int laneCenterY, uint16_t color) {
+    tft->fillRect(4, laneCenterY - 7, 5, 14, color);
+}
+
 void GamesScreen::spawnAirTrafficPlane() {
     int freeLanes[AIRTRAFFIC_LANES];
     int freeCount = 0;
@@ -1085,10 +1124,9 @@ void GamesScreen::spawnAirTrafficPlane() {
     _airPlaneActive[lane] = true;
     _airPlaneX[lane] = tft->width() + AIRTRAFFIC_PLANE_W; // enters just off the right edge
 
-    // If nothing was selected (every lane was empty a moment ago), give the
-    // new plane the cursor automatically instead of leaving the player with
-    // no selection until they turn the knob.
-    if (_airSelectedLane < 0) _airSelectedLane = lane;
+    // Deliberately does NOT touch _airSelectedLane. Handing the cursor to
+    // each new plane is what let the game be played without ever turning
+    // the knob - see the header. Steering is the player's job.
 }
 
 void GamesScreen::startAirTraffic() {
@@ -1098,8 +1136,11 @@ void GamesScreen::startAirTraffic() {
         _airLastDrawnActive[i] = false;
         _airLastDrawnX[i] = 0;
     }
-    _airSelectedLane = -1;
+    _airSelectedLane = 0;      // a lane cursor, always valid - see the header
     _airLastDrawnSelectedLane = -1;
+    _airMsg = nullptr;
+    _airMsgUntil = 0;
+    _airMsgDrawn = false;
     _airScore = 0;
     _airLives = AIRTRAFFIC_START_LIVES;
     _airBest = _portal->getAirTrafficBestScore();
@@ -1128,13 +1169,22 @@ void GamesScreen::updateAirTraffic() {
     float speed = 2.0f + (_airScore * 0.1f);
     if (speed > 5.0f) speed = 5.0f;
 
-    if (now - _airLastSpawnAt >= AIRTRAFFIC_SPAWN_MS) {
+    // Spawns come closer together as the score climbs, so late game the
+    // lanes actually fill up and the player has to choose which approach to
+    // take first - the speed ramp alone only ever made one plane at a time
+    // arrive sooner.
+    unsigned long spawnEvery = AIRTRAFFIC_SPAWN_MS;
+    unsigned long quicker = (unsigned long)_airScore * AIRTRAFFIC_SPAWN_STEP_MS;
+    spawnEvery = (quicker >= spawnEvery - AIRTRAFFIC_SPAWN_MIN_MS)
+                     ? AIRTRAFFIC_SPAWN_MIN_MS
+                     : spawnEvery - quicker;
+
+    if (now - _airLastSpawnAt >= spawnEvery) {
         _airLastSpawnAt = now;
         spawnAirTrafficPlane();
     }
 
     // ---- Movement + miss detection ----
-    bool lifeLost = false;
     const int half = AIRTRAFFIC_PLANE_W / 2;
     for (int i = 0; i < AIRTRAFFIC_LANES; i++) {
         if (!_airPlaneActive[i]) continue;
@@ -1145,16 +1195,9 @@ void GamesScreen::updateAirTraffic() {
             // the run outright.
             _airPlaneActive[i] = false;
             _airLives--;
-            lifeLost = true;
-            if (_airSelectedLane == i) _airSelectedLane = -1;
+            // The cursor is the player's, so a miss does not move it - it
+            // stays on the lane they were watching.
         }
-    }
-
-    if (lifeLost && _airSelectedLane < 0) {
-        // The selection may have just been cleared above - hand it to
-        // whatever other lane still has a plane, if any.
-        int next = airLaneStep(-1, +1);
-        _airSelectedLane = _airPlaneActive[next] ? next : -1;
     }
 
     if (_airLives <= 0) {
@@ -1178,6 +1221,15 @@ void GamesScreen::updateAirTraffic() {
         tft->fillRect(0, PLAY_TOP, tft->width(), playBottom - PLAY_TOP, theme.bg);
 
         tft->drawFastVLine(AIRTRAFFIC_RUNWAY_X, PLAY_TOP, playBottom - PLAY_TOP, theme.rule);
+
+        // The approach gate: everything left of this line is landable. Drawn
+        // dashed so it reads as a threshold to cross rather than as another
+        // hard edge like the runway line, and so the two are never confused
+        // at a glance.
+        for (int y = PLAY_TOP + 2; y < playBottom; y += 8) {
+            tft->drawFastVLine(AIRTRAFFIC_APPROACH_X, y, 4, theme.rule);
+        }
+
         for (int i = 1; i < AIRTRAFFIC_LANES; i++) {
             tft->drawFastHLine(0, PLAY_TOP + laneH * i, tft->width(), theme.rule);
         }
@@ -1185,11 +1237,13 @@ void GamesScreen::updateAirTraffic() {
         for (int i = 0; i < AIRTRAFFIC_LANES; i++) {
             _airLastDrawnActive[i] = _airPlaneActive[i];
             _airLastDrawnX[i] = _airPlaneX[i];
+            int laneCenterY = PLAY_TOP + laneH * i + laneH / 2;
             if (_airPlaneActive[i]) {
-                int laneCenterY = PLAY_TOP + laneH * i + laneH / 2;
+                bool landable = (_airPlaneX[i] - half) <= AIRTRAFFIC_APPROACH_X;
                 drawAirPlane(tft, (int)_airPlaneX[i], laneCenterY, AIRTRAFFIC_PLANE_W, AIRTRAFFIC_PLANE_H,
-                             (i == _airSelectedLane) ? theme.accent : theme.fg);
+                             airPlaneColor(theme, landable, i == _airSelectedLane));
             }
+            if (i == _airSelectedLane) drawAirLaneCursor(tft, laneCenterY, theme.accent);
         }
 
         tft->fillRect(8, PLAY_TOP + 2, 60, 20, theme.bg);
@@ -1218,9 +1272,17 @@ void GamesScreen::updateAirTraffic() {
             drawAirPlane(tft, (int)_airLastDrawnX[i], laneCenterY, AIRTRAFFIC_PLANE_W, AIRTRAFFIC_PLANE_H, theme.bg);
         }
         if (isActive) {
+            bool landable = (_airPlaneX[i] - half) <= AIRTRAFFIC_APPROACH_X;
             drawAirPlane(tft, (int)_airPlaneX[i], laneCenterY, AIRTRAFFIC_PLANE_W, AIRTRAFFIC_PLANE_H,
-                         isSelected ? theme.accent : theme.fg);
+                         airPlaneColor(theme, landable, isSelected));
         }
+
+        // The cursor only moves when the knob moves it, so this repaints on
+        // the frame the selection actually changed and never again.
+        if (wasSelected != isSelected) {
+            drawAirLaneCursor(tft, laneCenterY, isSelected ? theme.accent : theme.bg);
+        }
+
         _airLastDrawnActive[i] = isActive;
         _airLastDrawnX[i] = _airPlaneX[i];
     }
@@ -1238,6 +1300,34 @@ void GamesScreen::updateAirTraffic() {
     if (_airLives != _airLastDrawnLives) {
         drawPaddleLives(tft, _airLives, AIRTRAFFIC_START_LIVES, theme.bg, theme.danger);
         _airLastDrawnLives = _airLives;
+    }
+
+    // ---- Bad-press note ----
+    // Sits in the gap between the score (top left) and the lives pips (top
+    // right), above where lane 0's plane flies, so it never fights with
+    // either. Painted once when it appears and erased once when it expires;
+    // no per-frame cost while nothing is showing.
+    {
+        const int msgX = tft->width() / 2;
+        const int msgY = PLAY_TOP + 6;
+        bool msgActive = (_airMsg != nullptr) && (now < _airMsgUntil);
+
+        if (msgActive && !_airMsgDrawn) {
+            // Cleared first: a second bad press can replace the note while
+            // it is still up, and the two strings are different widths, so
+            // drawing straight over the old one would leave a tail behind.
+            tft->fillRect(msgX - 50, msgY - 2, 100, 12, theme.bg);
+            tft->setTextDatum(TC_DATUM);
+            tft->setTextSize(1);
+            tft->setTextColor(theme.danger, theme.bg);
+            tft->drawString(_airMsg, msgX, msgY);
+            tft->setTextDatum(TL_DATUM);
+            _airMsgDrawn = true;
+        } else if (!msgActive && _airMsgDrawn) {
+            tft->fillRect(msgX - 50, msgY - 2, 100, 12, theme.bg);
+            _airMsgDrawn = false;
+            _airMsg = nullptr;
+        }
     }
 }
 
@@ -1265,12 +1355,12 @@ void GamesScreen::drawAirTrafficGameOver() {
     tft->setTextDatum(TL_DATUM); // restore default for other screens
 }
 
+// One lane up or down, wrapping. Every lane is a valid stop, empty or not:
+// skipping the empty ones (which this used to do) meant the knob could only
+// ever land on a plane, so the cursor was never actually wrong and pressing
+// KO was never actually a decision.
 int GamesScreen::airLaneStep(int from, int dir) {
-    for (int k = 1; k <= AIRTRAFFIC_LANES; k++) {
-        int i = ((from + dir * k) % AIRTRAFFIC_LANES + AIRTRAFFIC_LANES) % AIRTRAFFIC_LANES;
-        if (_airPlaneActive[i]) return i;
-    }
-    return from;
+    return ((from + dir) % AIRTRAFFIC_LANES + AIRTRAFFIC_LANES) % AIRTRAFFIC_LANES;
 }
 
 void GamesScreen::getActionLegend(String &line1, String &line2) const {
@@ -1308,8 +1398,8 @@ void GamesScreen::getActionLegend(String &line1, String &line2) const {
             line2 = "o RETRY";
             break;
         case STATE_AIRTRAFFIC_PLAYING:
-            line1 = "^v SELECT PLANE";
-            line2 = "o LAND";
+            line1 = "^v PICK LANE";
+            line2 = "o LAND IN ZONE";
             break;
         case STATE_AIRTRAFFIC_GAMEOVER:
             line1 = "^v BACK TO LIST";
