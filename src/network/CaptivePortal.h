@@ -204,8 +204,10 @@ private:
     String _facingDirection; // "" = use default (DISPLAY_BEARING=270)
     String _calendarUrl;     // iCal feed URL, from NVS (see loadCalendarUrl)
 
-    // Default matches the original hardcoded FLIGHT_CHECK_INTERVAL (30000ms).
-    int _flightCheckIntervalSec = 30;
+    // Matches Config.cpp's default (see there for why it moved from 30 to
+    // 60) - overwritten by the saved value the moment loadLocationEEPROM()/
+    // the config load runs, so this only matters before that.
+    int _flightCheckIntervalSec = 60;
 
     // Default matches the original hardcoded boot behavior (always started
     // on the Plane screen, index 0).

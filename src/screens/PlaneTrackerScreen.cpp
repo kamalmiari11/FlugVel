@@ -249,6 +249,15 @@ void PlaneTrackerScreen::init() {
     _showAnimation = false;
     _lastDrawnFlight = "";  // Force redraw on init
 
+    // Flight-checking only runs while this screen is showing (see
+    // backgroundNetworkTask() in main.cpp), which fires an immediate fetch
+    // the instant that becomes true - so landing here with nothing to show
+    // yet means that fetch is now in flight. Skip the indicator if a flight
+    // is already showing (e.g. the boot-time prefetch already found one, or
+    // we're switching back in before the last result went stale) - that
+    // data just keeps showing until the fresh result replaces it.
+    _fetching = !_hasFlight;
+
     // Compute the border box from the actual panel size and draw it once
     // per visit to this screen. It is never redrawn again after this - see
     // clearContentArea(), which stays strictly inside it.
@@ -320,55 +329,101 @@ void PlaneTrackerScreen::draw() {
             drawFlightInfo();
         }
     } else {
-        // NO FLIGHT MODE - Smooth bouncing-text animation
-        static int lastKmlXDrawn = 50;
-        static int lastKmlYDrawn = 50;
-        static bool kmlDrawnOnce = false;
+        // NO FLIGHT MODE - either genuinely nothing overhead (bouncing
+        // text, exactly as before) or the first fetch since switching onto
+        // this screen is still outstanding (_fetching - see setFetching()/
+        // init()), in which case a bouncing plane bitmap stands in for it
+        // instead, so the screen never looks blank/frozen while that
+        // request is in flight. Both share the same kmlX/kmlY bounce
+        // position (advanced every 50ms by update()) - only what gets
+        // drawn at that position differs.
+        static int lastDrawnX = 50;
+        static int lastDrawnY = 50;
+        static int lastDrawnW = 0;
+        static int lastDrawnH = 0;
+        static bool drawnOnce = false;
 
         const Theme &theme = ThemeManager::current();
+        const char* stateTag = _fetching ? "FETCHING" : "NO_FLIGHT";
+        const int margin = 2; // small safety margin against sub-pixel/AA edges
 
-        // On first frame or when transitioning to this state
-        if (_lastDrawnFlight != "NO_FLIGHT") {
-            _lastDrawnFlight = "NO_FLIGHT";
-            kmlDrawnOnce = false;
+        // On first frame or when transitioning between flight / fetching /
+        // no-flight states.
+        if (_lastDrawnFlight != stateTag) {
+            _lastDrawnFlight = stateTag;
+            drawnOnce = false;
 
             clearContentArea(); // wipe whatever flight info / animation trail was showing
         }
 
-        // Compute the EXACT bounding box of the bounce-text glyphs at the
-        // text size we draw it at, so the erase rect always fully covers
-        // the previously drawn text - this is what fixes the trailing line.
-        tft->setTextSize(2);
-        int16_t textW = tft->textWidth(_bounceLabel);
-        int16_t textH = tft->fontHeight();
-        const int margin = 2; // small safety margin against sub-pixel/AA edges
+        if (_fetching) {
+            // Reuse one of the flyover bitmaps as a simple "still
+            // searching" indicator. The draw position is clamped
+            // separately from kmlX/kmlY themselves (untouched, so the
+            // shared bounce physics in updateKMLPosition() keep working
+            // exactly as they do for the text) because that bounce box was
+            // sized for the ~16px-tall bounce text - the 24px-tall bitmap
+            // could otherwise draw a few pixels past the border box.
+            int drawX = kmlX;
+            int drawY = kmlY;
+            int maxY = _borderY + _borderH - 2 - PLANE_H;
+            if (drawY > maxY) drawY = maxY;
 
-        if (kmlDrawnOnce) {
-            tft->fillRect(lastKmlXDrawn - margin, lastKmlYDrawn - margin,
-                          textW + margin * 2, textH + margin * 2, theme.bg);
+            if (drawnOnce) {
+                tft->fillRect(lastDrawnX - margin, lastDrawnY - margin,
+                              lastDrawnW + margin * 2, lastDrawnH + margin * 2, theme.bg);
+            }
+
+            tft->drawBitmap(drawX, drawY, planeBitmapE, PLANE_W, PLANE_H, theme.accent);
+
+            lastDrawnX = drawX;
+            lastDrawnY = drawY;
+            lastDrawnW = PLANE_W;
+            lastDrawnH = PLANE_H;
+            drawnOnce = true;
+        } else {
+            // Compute the EXACT bounding box of the bounce-text glyphs at the
+            // text size we draw it at, so the erase rect always fully covers
+            // the previously drawn text - this is what fixes the trailing line.
+            tft->setTextSize(2);
+            int16_t textW = tft->textWidth(_bounceLabel);
+            int16_t textH = tft->fontHeight();
+
+            if (drawnOnce) {
+                tft->fillRect(lastDrawnX - margin, lastDrawnY - margin,
+                              lastDrawnW + margin * 2, lastDrawnH + margin * 2, theme.bg);
+            }
+
+            // Draw new bounce text at new position
+            tft->setTextColor(theme.accent);
+            tft->setCursor(kmlX, kmlY);
+            tft->println(_bounceLabel);
+
+            // Remember where we drew it
+            lastDrawnX = kmlX;
+            lastDrawnY = kmlY;
+            lastDrawnW = textW;
+            lastDrawnH = textH;
+            drawnOnce = true;
         }
-
-        // Draw new bounce text at new position
-        tft->setTextColor(theme.accent);
-        tft->setCursor(kmlX, kmlY);
-        tft->println(_bounceLabel);
-
-        // Remember where we drew it
-        lastKmlXDrawn = kmlX;
-        lastKmlYDrawn = kmlY;
-        kmlDrawnOnce = true;
     }
 }
 
 void PlaneTrackerScreen::setFlight(const Flight& flight) {
     _currentFlight = flight;
     _hasFlight = true;
+    _fetching = false; // whatever fetch was in flight (if any) is done now
     _lastFlightTime = millis();
     _showAnimation = true;
 }
 
 void PlaneTrackerScreen::clearFlight() {
     _hasFlight = false; // draw() will transition to the bouncing-text state next frame
+    _fetching = false;  // ditto - the fetch that got us here (if any) is done
+}
+
+void PlaneTrackerScreen::setFetching(bool fetching) {
+    _fetching = fetching;
 }
 
 void PlaneTrackerScreen::onButtonPress() {

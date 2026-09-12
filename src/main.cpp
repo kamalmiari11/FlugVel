@@ -43,8 +43,11 @@
 #define RESET_HOLD_TIME 15000
 // Default flight-fetch interval, in ms - now adjustable at runtime from the
 // Settings screen's "API" submenu (see CaptivePortal::getFlightCheckIntervalSec()).
-// This define is only the initial value before any EEPROM/settings value loads.
-#define FLIGHT_CHECK_INTERVAL 30000  // 30 seconds
+// This define isn't read anywhere any more (backgroundNetworkTask() reads
+// portal.getFlightCheckIntervalSec() directly) - kept only so this comment's
+// number matches the real default in Config.cpp/CaptivePortal.h instead of
+// quietly going stale.
+#define FLIGHT_CHECK_INTERVAL 60000  // 1 minute
 
 // ============ DISPLAY & I/O ============
 TFT_eSPI tft = TFT_eSPI();
@@ -314,6 +317,15 @@ void applyFlightResult() {
 
     if (!ready) return;
 
+    // Whatever the outcome below, the fetch that was in flight has now
+    // resolved - if PlaneTrackerScreen was showing its bouncing-plane
+    // loading indicator for it (see PlaneTrackerScreen::init()/
+    // setFetching()), it's done regardless of found/apiFailed. setFlight()/
+    // clearFlight() below also clear it themselves, but apiFailed hits
+    // neither of those, so without this line a fetch that fails on every
+    // provider would leave the loading indicator stuck on screen forever.
+    if (planeScreen) planeScreen->setFetching(false);
+
     if (found) {
         currentFlight = flight;
         if (planeScreen) {
@@ -406,7 +418,8 @@ void checkQuoteOfTheDayBG() {
 // The actual background task loop. Pinned to core 0 - Arduino's loop()
 // runs on core 1 by default - so a slow HTTP round-trip here genuinely
 // cannot stall drawing/input on the other core. Polls every 500ms, which
-// is frequent enough to catch the 30s flight interval and the midnight
+// is frequent enough to catch the flight interval (60s by default,
+// adjustable 5-3600s in Settings > API - see Config.cpp) and the midnight
 // quote check promptly without spinning the CPU.
 void backgroundNetworkTask(void* pvParameters) {
     unsigned long bgLastFlightCheck = 0;
@@ -424,13 +437,29 @@ void backgroundNetworkTask(void* pvParameters) {
     for (;;) {
         if (wifiConnected) {
             unsigned long now = millis();
-            // Read the current setting every iteration (cheap int read) so
-            // a change made in Settings takes effect on the very next check
-            // instead of requiring a reboot.
-            unsigned long flightCheckIntervalMs = (unsigned long)portal.getFlightCheckIntervalSec() * 1000UL;
-            if (now - bgLastFlightCheck >= flightCheckIntervalMs) {
-                bgLastFlightCheck = now;
-                fetchFlightBG();
+
+            // Flight-checking only runs while the Plane screen is actually
+            // the one showing (ScreenManager::showingId() - a static read,
+            // safe to call from this task same as the config screen already
+            // does from the main task). Every other screen makes zero
+            // flight-API calls no matter how long it's left showing, which
+            // is most of a device's uptime for most users. This also gives
+            // an immediate fetch "for free" the moment you switch onto the
+            // Plane screen: bgLastFlightCheck was last touched (if ever)
+            // during some earlier visit, so by the time you come back the
+            // interval below has almost always already elapsed - no extra
+            // "just switched in" bookkeeping needed. (See
+            // PlaneTrackerScreen::init(), which shows a loading indicator
+            // for exactly that first fetch.)
+            if (ScreenManager::showingId() == ScreenId::Plane) {
+                // Read the current setting every iteration (cheap int read)
+                // so a change made in Settings takes effect on the very
+                // next check instead of requiring a reboot.
+                unsigned long flightCheckIntervalMs = (unsigned long)portal.getFlightCheckIntervalSec() * 1000UL;
+                if (now - bgLastFlightCheck >= flightCheckIntervalMs) {
+                    bgLastFlightCheck = now;
+                    fetchFlightBG();
+                }
             }
 
             checkQuoteOfTheDayBG();
@@ -552,10 +581,15 @@ void setup() {
     WiFi.setHostname(CaptivePortal::deviceName().c_str());
     WiFi.setAutoReconnect(true);
     WiFi.persistent(false);
-    // Disable WiFi modem-sleep. Its default (WIFI_PS_MIN_MODEM) periodically
-    // drops the CPU/APB clock, which makes the LEDC-driven backlight PWM
-    // stutter/pulse in sync with WiFi activity. Costs a little idle power
-    // but the light stays rock steady.
+    // Disable WiFi modem-sleep. With it on, the radio power-cycles its
+    // receive circuitry on a steady rhythm to listen for each DTIM beacon,
+    // and that periodic current draw visibly dims/pulses the backlight -
+    // a power-rail issue (voltage sag when the radio keys up), not a PWM
+    // timing one; changing the backlight's own PWM clock source didn't
+    // touch it. Leaving modem-sleep off keeps the radio's draw steady
+    // instead of pulsed, so the backlight stays steady too. Costs a little
+    // idle power/runs the ESP32 a bit warmer - see Backlight.cpp for the
+    // real fix (a bulk capacitor on the supply rail) if that's worth doing.
     WiFi.setSleep(false);
 
     // ---- Load Saved WiFi + Location (before the boot screen runs, so the

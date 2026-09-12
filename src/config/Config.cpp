@@ -60,7 +60,13 @@ static void applyDefaults(Config &c) {
     c.showDate          = 1;
     c.legend            = 1;
     c.leftHanded        = 0;
-    c.flightIntervalSec = 30;
+    // 60s (was 30s) - the Plane screen's flight-checking is now gated to
+    // only run while that screen is actually showing (see main.cpp's
+    // backgroundNetworkTask()), which already cuts most devices' request
+    // volume far more than this default alone ever could. This just trims
+    // it a bit further for anyone who leaves the screen up for a while and
+    // never visits Settings > API to change it themselves.
+    c.flightIntervalSec = 60;
     c.flappyBest        = 0;
     c.paddleBest        = 0;
 

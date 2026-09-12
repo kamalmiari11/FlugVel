@@ -37,6 +37,17 @@ public:
     // last flight's info stuck on screen forever.
     void clearFlight();
 
+    // Flight-checking is gated to only run while this screen is actually
+    // showing (see main.cpp's backgroundNetworkTask()), which fires an
+    // immediate fetch the moment that happens. Call this true right as that
+    // fetch starts and false once it resolves (setFlight()/clearFlight()
+    // already do the latter), so draw() can show a bouncing-plane loading
+    // indicator instead of the bounce-text "nothing overhead" state for
+    // that first request - without it the screen would look blank/frozen
+    // for however long the fetch takes. Has no visible effect while a
+    // flight is already showing.
+    void setFetching(bool fetching);
+
     // Animation control
     void triggerAnimation();
 
@@ -55,6 +66,7 @@ public:
 private:
     Flight _currentFlight;
     bool _hasFlight;
+    bool _fetching = false;   // see setFetching() above
     bool _showAnimation;
     unsigned long _animationStartTime;
     unsigned long _lastFlightTime;
