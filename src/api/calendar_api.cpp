@@ -1,4 +1,5 @@
 #include "calendar_api.h"
+#include "NetGate.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <string.h>
@@ -549,6 +550,7 @@ int fetchCalendarEvents(CalEvent *out, int maxEvents, const String &icsUrl, int 
 
     Serial.printf("[Cal] Fetching %s\n", icsUrl.c_str());
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     http.setTimeout(12000);
     http.setConnectTimeout(8000);

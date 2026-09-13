@@ -6,6 +6,7 @@
 #include "FocusTimerScreen.h"
 #include "CalendarScreen.h"
 #include "NotesScreen.h"
+#include "StockScreen.h"
 #include "SettingsScreen.h"
 
 // Each factory takes (tft, portal) so the table can be walked uniformly;
@@ -16,6 +17,7 @@ static Screen* makeGames   (TFT_eSPI* t, CaptivePortal* p)     { return new Game
 static Screen* makeFocus   (TFT_eSPI* t, CaptivePortal*)       { return new FocusTimerScreen(t); }
 static Screen* makeCalendar(TFT_eSPI* t, CaptivePortal* p)     { return new CalendarScreen(t, p); }
 static Screen* makeNotes   (TFT_eSPI* t, CaptivePortal*)       { return new NotesScreen(t); }
+static Screen* makeStock   (TFT_eSPI* t, CaptivePortal*)       { return new StockScreen(t); }
 static Screen* makeSettings(TFT_eSPI* t, CaptivePortal* p)     { return new SettingsScreen(t, p); }
 
 // The names here are the ones shown in the header's bracketed title and in
@@ -28,6 +30,7 @@ static const ScreenDef kScreens[] = {
     { ScreenId::Focus,    "Focus",    makeFocus    },
     { ScreenId::Calendar, "Calendar", makeCalendar },
     { ScreenId::Notes,    "Notes",    makeNotes    },
+    { ScreenId::Stock,    "Stocks",   makeStock    },
     { ScreenId::Settings, "Settings", makeSettings },  // pinned - must stay last
 };
 static const int kCount = sizeof(kScreens) / sizeof(kScreens[0]);

@@ -1,4 +1,5 @@
 #include "weather_api.h"
+#include "NetGate.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -97,6 +98,7 @@ static bool fetchWeatherOpenMeteo(WeatherData &data, float lat, float lon) {
     String url = buildOpenMeteoUrl(lat, lon);
     Serial.printf("[Weather] open-meteo: %s\n", url.c_str());
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     http.setTimeout(10000);
     http.begin(url);
@@ -164,6 +166,7 @@ static bool fetchHourlyOpenMeteo(WeatherHourly &data, float lat, float lon, cons
     url += "&timezone=auto";
     Serial.printf("[Weather] open-meteo hourly %s: %s\n", isoDate.c_str(), url.c_str());
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     http.setTimeout(10000);
     http.begin(url);
@@ -229,6 +232,7 @@ static bool wttrGet(float lat, float lon, String &bodyOut) {
     String url = "https://wttr.in/" + String(lat, 4) + "," + String(lon, 4) + "?format=j1";
     Serial.printf("[Weather] wttr fallback: %s\n", url.c_str());
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     http.setTimeout(15000);
     http.setConnectTimeout(10000);

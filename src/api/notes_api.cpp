@@ -1,4 +1,5 @@
 #include "notes_api.h"
+#include "NetGate.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -67,6 +68,7 @@ int fetchNotionNotes(NoteItem *out, int maxItems, const String &token,
 
     Serial.printf("[Notes] Fetching page %s\n", pageId.c_str());
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     http.setTimeout(10000);
     http.setConnectTimeout(8000);
@@ -166,6 +168,7 @@ bool setNotionTodoChecked(const String &token, const String &blockId, bool check
 
     String url = "https://api.notion.com/v1/blocks/" + blockId;
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     http.setTimeout(10000);
     http.setConnectTimeout(8000);

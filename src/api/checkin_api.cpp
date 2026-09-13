@@ -2,6 +2,7 @@
 #include "../version.h"
 #include "../network/CaptivePortal.h"
 #include "update_check.h"
+#include "NetGate.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -32,6 +33,7 @@ void sendCheckin(const String& location) {
     String payload;
     serializeJson(doc, payload);
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     http.setTimeout(8000);
     http.begin(CHECKIN_URL); // https:// - HTTPClient auto-uses a secure client internally, same as the other api/ files in this project

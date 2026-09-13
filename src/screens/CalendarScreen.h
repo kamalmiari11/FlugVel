@@ -81,6 +81,7 @@ private:
     void startFetch();
     static void fetchTaskEntry(void *param);
     void applyPending();
+    void drawSkeletonList();
     void drawList();
     void drawDetail();
     void emptyState(const char* line1, const char* line2);

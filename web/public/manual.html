@@ -58,7 +58,7 @@
 
   <div class="manual">
     <h1 class="first">User Manual</h1>
-    <p class="sub manual-intro-sub">Everything you need to set up and use a FlugVel device. Covers firmware v1.0.13.</p>
+    <p class="sub manual-intro-sub">Everything you need to set up and use a FlugVel device. Covers firmware v1.0.25.</p>
 
     <div class="manual-section">
       <div class="sec-head"><h2 id="setup">1. First-time setup</h2><span class="caret">&#9662;</span></div>
@@ -108,7 +108,7 @@
     <div class="manual-section">
       <div class="sec-head"><h2 id="screens">3. Screens</h2><span class="caret">&#9662;</span></div>
       <div class="sec-body">
-      <p>Default order is Plane → Weather → Games → Focus → Calendar → Notes → Settings, but you can reorder or hide any of these except Settings from the Customise tab — so if you never play the games, they don't have to be in your cycle at all.</p>
+      <p>Default order is Plane → Weather → Games → Focus → Calendar → Notes → Stocks → Settings, but you can reorder or hide any of these except Settings from the Customise tab — so if you never play the games, they don't have to be in your cycle at all.</p>
 
       <h3>Plane</h3>
       <p>Shows the nearest aircraft currently overhead — callsign, altitude, speed and bearing — with an optional flyover animation when one passes near. When the sky is empty, it shows a bouncing callsign along with a quote of the day (both can be turned off individually). A minimum-altitude filter is available if you'd rather not see everything down to ground level.</p>
@@ -152,6 +152,10 @@
 - Bring the charger this time</pre>
       </div>
       <p>Share the page with your integration (<a href="#console">§4</a>) and it renders exactly like this on the device. Repeat the pattern per day, and turn on <strong>Group notes by day</strong> to get a collapsible day-by-day list with the first day opened automatically. Leave the setting off and the exact same page just reads as one flat list, with each day's heading acting as a plain section divider instead.</p>
+
+      <h3>Stocks</h3>
+      <p>A short price list — symbol, current price and the day's change, up to 10 tickers you configure yourself. A red or unavailable-looking row that never resolves usually means a typo in the ticker rather than a real fetch problem: see <strong>"not found" vs. "unavailable"</strong> below. Turn the knob to scroll if you've got more tickers than fit on screen; the button forces an immediate refresh instead of waiting for the next scheduled check.</p>
+      <p>A row that hasn't answered yet shows as a dim placeholder instead of sitting blank while its own price is still on the way — each ticker is fetched one at a time in the background, so the list fills in gradually rather than all at once. Once a ticker's own fetch fails, it settles into one of two states: <strong>"not found"</strong> means the ticker itself doesn't exist (double-check the spelling in Customise), while <strong>"unavailable"</strong> is a transient hiccup — a network blip or a rate limit — that a later refresh will likely clear up on its own.</p>
 
       <h3>Settings</h3>
       <p>Always last in the cycle, and the one screen that can't be hidden — it's covered in full in <a href="#settings">§5</a>. It's mostly device info, a quick on-device theme picker, and the doorway to updates/restart/reset; the deeper customisation lives in the setup console instead (<a href="#console">§4</a>).</p>
@@ -219,6 +223,28 @@
         <div class="step-num">Step 5</div>
         <p>Set <strong>Look ahead</strong> (how far into the future events are listed) and <strong>Keep at most</strong> (a cap across every feed combined) to taste, and save.</p>
       </div>
+
+      <h3>Connect your stocks (Finnhub)</h3>
+      <div class="step">
+        <div class="step-num">Step 1</div>
+        <p>Go to <code>finnhub.io/register</code> and create a free account — no payment details needed.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 2</div>
+        <p>On your Finnhub dashboard, copy your <strong>API key</strong>.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 3</div>
+        <p>In the setup console's <strong>Customise</strong> tab, open the <strong>Stocks</strong> section and paste the key into <strong>API key</strong>.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 4</div>
+        <p>Type a ticker symbol into the first row (e.g. <code>AAPL</code>) — start typing and, once a key is entered, real matching symbols suggest themselves so a typo is easy to catch before it's saved. Click <strong>+ Add ticker</strong> for another row, up to 10.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 5 <span class="tag">optional</span></div>
+        <p>Set <strong>Refresh every</strong> to taste (5–60 minutes) and save. Clearing a row's ticker and saving again removes it from the list.</p>
+      </div>
       </div>
     </div>
 
@@ -273,6 +299,8 @@
         <tr><td>Calendar shows nothing, or the wrong events</td><td>Confirm each feed URL in Customise is a direct link to an .ics file (not a webpage), and that the feed is still marked enabled.</td></tr>
         <tr><td>Notes says "Can't access page" or "Page not found"</td><td>Double-check the integration token, and make sure the page was actually shared with the integration (its ··· menu → Connections) — a valid token alone isn't enough, the integration also has to be added to that specific page.</td></tr>
         <tr><td>Ticking a box on the device doesn't stick</td><td>The integration needs "Update content" capability, not just "Read content" — edit the integration at notion.so/my-integrations, turn that on, and save (<a href="#console">§4</a> has the full walkthrough).</td></tr>
+        <tr><td>A stock ticker always shows "not found"</td><td>The symbol itself doesn't exist on Finnhub — double-check the spelling in Customise (typing there suggests real symbols once your API key is entered, which catches most typos before they're even saved).</td></tr>
+        <tr><td>A stock ticker shows "unavailable", or all of them do</td><td>Usually transient — a network hiccup or a momentary rate limit — and clears up on the next scheduled refresh. If every ticker stays "unavailable", double-check the API key itself in Customise.</td></tr>
         <tr><td>Can't reach the setup console by typing the .local address</td><td>Some phones/routers don't resolve <code>.local</code> names. Use the numeric IP address shown on Settings → Device Info instead.</td></tr>
         <tr><td>Stuck on an old firmware version</td><td>Go to Settings → Update to force a manual check rather than waiting for the automatic one at boot.</td></tr>
       </table>

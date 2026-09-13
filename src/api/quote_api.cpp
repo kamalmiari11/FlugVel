@@ -1,4 +1,5 @@
 #include "quote_api.h"
+#include "NetGate.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -89,6 +90,7 @@ static const int   RETRY_DELAY_MS      = 700;
 // One HTTP GET against one source. Returns true only if the body parsed
 // into a usable quote.
 static bool fetchFromSource(const QuoteSource &src, QuoteData &data) {
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     WiFiClientSecure client;
     client.setInsecure();                 // public, read-only endpoint
     client.setHandshakeTimeout(15);       // seconds

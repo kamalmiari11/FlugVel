@@ -66,17 +66,11 @@ private:
     static void hourlyTaskEntry(void* param);
     void startOnDemandHourly(int day);
 
-    // Animated loading skeleton (week view before the first fetch, day view
-    // before that day's hourly data arrives). A bright scan line sweeps up
-    // and down the band where the temperature figures will appear.
-    unsigned long _skelLastTick;
-    int _scanPos;
-    int _scanDir;
-    static const unsigned long SKEL_TICK_MS = 60;
-    bool skeletonActive() const;
+    // Static loading skeleton (week view before the first fetch, day view
+    // before that day's hourly data arrives) - dim placeholder bars where
+    // the real figures will land, no animation.
     void drawWeekSkeleton();
     void drawDaySkeleton();
-    void tickSkeleton();
 
     // Per-day cache so re-visiting a day already seen this refresh cycle
     // (scrolling back and forth in detail view) doesn't fire a new request.

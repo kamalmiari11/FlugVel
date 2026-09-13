@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FlugVel — a knob that watches the sky</title>
-<meta name="description" content="FlugVel: a homemade desk gadget for flights, weather, your calendar, a focus timer, and two working games. Runs on one knob.">
+<meta name="description" content="FlugVel: a homemade desk gadget for flights, weather, your calendar, your notes, stock prices, a focus timer, and two working games. Runs on one knob.">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -12,11 +12,11 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://flugvel.com/">
 <meta property="og:title" content="FlugVel — a knob that watches the sky">
-<meta property="og:description" content="A homemade desk gadget for flights, weather, your calendar, a focus timer, and two working games. Runs on one knob.">
+<meta property="og:description" content="A homemade desk gadget for flights, weather, your calendar, your notes, stock prices, a focus timer, and two working games. Runs on one knob.">
 <meta property="og:image" content="https://flugvel.com/og-image.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="FlugVel — a knob that watches the sky">
-<meta name="twitter:description" content="A homemade desk gadget for flights, weather, your calendar, a focus timer, and two working games. Runs on one knob.">
+<meta name="twitter:description" content="A homemade desk gadget for flights, weather, your calendar, your notes, stock prices, a focus timer, and two working games. Runs on one knob.">
 <meta name="twitter:image" content="https://flugvel.com/og-image.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,7 +28,7 @@
   "name": "FlugVel",
   "url": "https://flugvel.com/",
   "image": "https://flugvel.com/og-image.jpg",
-  "description": "A homemade desk gadget for flights, weather, your calendar, a focus timer, and two working games. Runs on one knob.",
+  "description": "A homemade desk gadget for flights, weather, your calendar, your notes, stock prices, a focus timer, and two working games. Runs on one knob.",
   "brand": { "@type": "Brand", "name": "FlugVel" }
 }
 </script>
@@ -53,9 +53,9 @@
     <div class="wrap">
       <div class="hero hero-split">
         <div class="hero-copy">
-          <div class="eyebrow">Personal build <b>·</b> One knob <b>·</b> v1.0.23</div>
+          <div class="eyebrow">Personal build <b>·</b> One knob <b>·</b> v1.0.25</div>
           <h1>A little box that watches the sky so I don't have to.</h1>
-          <p class="sub">Flights, weather, your calendar, your notes, a focus timer, two working games. All on one knob. No app. You're looking at it right now, actually — this whole page is running on its screen.</p>
+          <p class="sub">Flights, weather, your calendar, your notes, stock prices, a focus timer, two working games. All on one knob. No app. You're looking at it right now, actually — this whole page is running on its screen.</p>
           <div class="cta-row">
             <a href="/manual" class="act">Read the manual</a>
           </div>
@@ -71,7 +71,7 @@
         <div class="wrap">
         <div class="section-head" data-reveal>
           <div class="eyebrow">What it does</div>
-          <h2>Seven screens. One knob.</h2>
+          <h2>Eight screens. One knob.</h2>
           <p>Turn to move, click to switch screens. Reorder or hide any of them.</p>
         </div>
         </div>
@@ -103,6 +103,13 @@
             </div>
             <h3>Notes</h3>
             <p>Pulled straight from a Notion page — group it by day with the first one opened automatically, and tick things off right on the device.</p>
+          </div>
+          <div class="feature feature-sm" data-reveal data-screen="stock">
+            <div class="icon-badge">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-9"/><path d="M15 5h6v6"/></svg>
+            </div>
+            <h3>Stocks</h3>
+            <p>Price and day change for up to ten tickers you pick — bring your own free API key, no subscription needed.</p>
           </div>
           <div class="feature feature-sm" data-reveal data-screen="focus">
             <div class="icon-badge">
@@ -174,11 +181,13 @@
              on GitHub when a newer release is out, so this never goes stale. -->
         <div class="changelog" id="changelog" data-reveal>
           <article class="release-lead">
-            <div class="release-ver">v1.0.23</div>
+            <div class="release-ver">v1.0.25</div>
             <time datetime="2026-09-13">13 Sep 2026</time>
-            <p>Boot, calendar and notes no longer freeze the device on a slow network. The plane screen's loading indicator no longer erases the border.</p>
+            <p>A new Stocks screen: price and day change for up to ten tickers, bring your own free API key. Calendar and Notes now show a loading skeleton instead of a blank screen while their first fetch is out, and every background fetch in the firmware now waits its turn instead of occasionally colliding and failing on low memory.</p>
           </article>
           <ol class="release-list">
+            <li><span class="release-ver">v1.0.24</span><p>Fixed the air traffic game erasing its runway lines where planes passed, and the boot update prompt running off the bottom of the screen.</p></li>
+            <li><span class="release-ver">v1.0.23</span><p>Boot, calendar and notes no longer freeze the device on a slow network. The plane screen's loading indicator no longer erases the border.</p></li>
             <li><span class="release-ver">v1.0.22</span><p>The plane screen stops refetching every time you turn back to it.</p></li>
             <li><span class="release-ver">v1.0.20</span><p>The calendar shows repeating events: weekly, monthly and yearly.</p></li>
             <li><span class="release-ver">v1.0.18</span><p>Air Traffic is a real game now. Land planes only once they reach the approach zone.</p></li>

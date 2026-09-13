@@ -17,6 +17,7 @@
 #include "../config/Config.h"
 #include "../config/CalendarFeeds.h"
 #include "../config/NotesSource.h"
+#include "../config/StockSource.h"
 #include "../screens/ScreenRegistry.h"
 #include "../screens/GamesScreen.h"
 #include "../screens/ScreenManager.h"
@@ -135,7 +136,7 @@ p{color:#5a6048;font-size:13px;max-width:34ch;margin:10px auto}
          "</body></html>";
     return p;
 }
-String CaptivePortal::configPageHtml(bool justSaved)
+String CaptivePortal::configPageHtml(bool justSaved, const String &stockWarning)
 {
     const Config &c = ConfigStore::get();
 
@@ -187,6 +188,7 @@ button.act{width:100%;padding:14px;margin-top:10px;border:1px solid var(--accent
  text-transform:uppercase;cursor:pointer;border-radius:0}
 button.act.ghost{background:transparent;color:var(--fg);border-color:var(--rule);letter-spacing:1px}
 .ok{border:1px solid var(--accent);color:var(--accent);padding:9px 10px;margin:0 0 14px;font-size:12px;text-align:center}
+.warn{border:1px solid var(--req);color:var(--req);padding:9px 10px;margin:0 0 14px;font-size:12px;text-align:center}
 .custom-grid{display:grid;grid-template-columns:minmax(0,850px) minmax(0,1fr);gap:20px;align-items:start}
 @media(max-width:1320px){.custom-grid{grid-template-columns:1fr}.device-col{position:static}}
 .device-col{position:sticky;top:20px;min-width:0;overflow:hidden}
@@ -260,6 +262,11 @@ button.act.ghost{background:transparent;color:var(--fg);border-color:var(--rule)
 .opt .num{font-size:11px;color:var(--dim);min-width:56px;text-align:right;font-variant-numeric:tabular-nums}
 .feed{display:grid;grid-template-columns:92px minmax(0,1fr);gap:6px;margin-bottom:6px}
 .feed input{padding:8px;font-size:12px;min-width:0;width:100%}
+.symrow{margin-bottom:6px}
+.symrow input{padding:8px;font-size:12px;width:100%;max-width:140px;text-transform:uppercase}
+.addsym{background:transparent;border:1px dashed var(--rule);color:var(--dim);font:inherit;
+ font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:7px 12px;cursor:pointer;margin:2px 0 6px}
+.addsym:hover{border-color:var(--accent);color:var(--accent)}
 .pvn{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;text-align:center;margin:8px 0 0}
 </style></head><body><div class="shell">
 <div class="masthead"><h1><b>[</b> FLUGVEL <b>]</b></h1><p>Device setup</p>
@@ -271,6 +278,14 @@ button.act.ghost{background:transparent;color:var(--fg);border-color:var(--rule)
 )HTML";
 
     if (justSaved) p += "<p class=\"ok\">Saved to the device.</p>";
+    // Set only right after a save that actually had network access to check
+    // tickers against Finnhub - see applyConfigPost()'s comment on why this
+    // can never fire during first-time setup (no internet yet at that
+    // point), only when editing later while already on the home network.
+    if (stockWarning.length() > 0) {
+        p += "<p class=\"warn\">Couldn&#39;t verify ticker(s): " + esc(stockWarning) +
+             " &mdash; check the spelling, they'll show \"unavailable\" on the Stocks screen otherwise.</p>";
+    }
 
     // ================= 01 Wi-Fi + 02 Location =================
     // During first-run setup the two are one form: the credentials have to
@@ -486,6 +501,49 @@ button.act.ghost{background:transparent;color:var(--fg);border-color:var(--rule)
                 optSwitch(p, "ngrp", "Group by day", "collapse the list into day sections, today opened automatically", NotesSource::groupByDay());
                 break;
             }
+            case ScreenId::Stock: {
+                p += "<p class=\"hint\">Free at finnhub.io/register: sign up, copy your "
+                     "API key from the dashboard, paste it below. Add up to " +
+                     String(StockSource::MAX_SYMBOLS) + " tickers - clear a row to drop it.</p>";
+                optText(p, "stok", "API key", "from your Finnhub dashboard",
+                        StockSource::apiKey(), 60, "");
+                // Only the filled rows plus one blank are rendered up front,
+                // not all MAX_SYMBOLS at once - the "+" button (JS, see
+                // addSymRow()) reveals more, up to the cap in data-max.
+                int filled = 0;
+                for (int i = 0; i < StockSource::MAX_SYMBOLS; i++) {
+                    if (StockSource::symbolAt(i).length() > 0) filled = i + 1;
+                }
+                int shown = filled + 1;
+                if (shown > StockSource::MAX_SYMBOLS) shown = StockSource::MAX_SYMBOLS;
+                p += "<div id=\"symrows\" data-max=\"" + String(StockSource::MAX_SYMBOLS) + "\">";
+                for (int i = 0; i < shown; i++) {
+                    p += "<div class=\"symrow\"><input type=\"text\" name=\"ssym" + String(i) +
+                         "\" maxlength=\"7\" placeholder=\"AAPL\" list=\"symlist\" "
+                         "oninput=\"symSuggest(this)\" value=\"" +
+                         esc(StockSource::symbolAt(i)) + "\"></div>";
+                }
+                p += "</div>";
+                if (shown < StockSource::MAX_SYMBOLS) {
+                    p += "<button type=\"button\" id=\"addsymbtn\" class=\"addsym\" "
+                         "onclick=\"addSymRow()\">+ Add ticker</button>";
+                }
+                // Suggestions only ever populate when the browser itself has
+                // real internet to reach Finnhub with - true once this page
+                // is reached by editing later on the home network, never
+                // during first-time setup (the phone is still on the
+                // portal's own isolated Wi-Fi at that point, same reason
+                // the ticker check on save can't run then either - see
+                // applyConfigPost()). Fails silently either way: no
+                // suggestions is the same as typing a symbol always was.
+                p += "<datalist id=\"symlist\"></datalist>";
+                static const char *const kSRef[] = { "5 min", "10 min", "15 min", "30 min", "60 min" };
+                static const int kSRefV[] = { 5, 10, 15, 30, 60 };
+                int sri = 2;
+                for (int i = 0; i < 5; i++) if (kSRefV[i] == StockSource::refreshMinutes()) { sri = i; break; }
+                optSelect(p, "sref", "Refresh every", "how often quotes are re-fetched", kSRef, kSRefV, 5, sri);
+                break;
+            }
             default:
                 p += "<p class=\"hint\" style=\"margin:10px 0 2px\">Always present and always last "
                      "in the cycle &mdash; it is the only way back to this page from the device.</p>";
@@ -582,6 +640,41 @@ var t=document.querySelector('[name=timezone]');if(t)t.selectedIndex=0;}
 function num(r){var o=r.parentNode.querySelector('.num');if(o)o.textContent=r.value+(o.dataset.sfx||'');pv();}
 function sw(b,n){var h=document.getElementById('h_'+n),on=h.value=='1';h.value=on?'0':'1';
 b.setAttribute('aria-pressed',!on);pv();}
+/* Adds one more blank ticker row, up to the cap in #symrows' data-max -
+   hides the button itself once that cap is reached. */
+function addSymRow(){
+var c=document.getElementById('symrows');var max=parseInt(c.dataset.max,10);
+var n=c.querySelectorAll('.symrow').length;
+if(n>=max)return;
+var d=document.createElement('div');d.className='symrow';
+var i=document.createElement('input');i.type='text';i.name='ssym'+n;
+i.maxLength=7;i.placeholder='AAPL';i.setAttribute('list','symlist');
+i.oninput=function(){symSuggest(i);};
+d.appendChild(i);c.appendChild(d);i.focus();
+if(c.querySelectorAll('.symrow').length>=max){
+var b=document.getElementById('addsymbtn');if(b)b.style.display='none';}
+}
+/* Ticker autocomplete: debounced, queries Finnhub's own symbol search using
+   whatever API key is currently in the form (not yet saved - read straight
+   off the field). No-ops silently on any failure (no key yet, no internet
+   from this browser, Finnhub unreachable) - that just means no suggestions
+   show up, same as typing always worked before this existed. */
+function symSuggest(inp){
+clearTimeout(inp._t);
+inp._t=setTimeout(function(){
+var q=inp.value.trim();if(q.length<1)return;
+var keyEl=document.querySelector('[name=stok]');var key=keyEl?keyEl.value.trim():'';
+if(!key)return;
+fetch('https://finnhub.io/api/v1/search?q='+encodeURIComponent(q)+'&token='+encodeURIComponent(key))
+.then(function(r){return r.json();})
+.then(function(d){
+var dl=document.getElementById('symlist');if(!dl||!d||!d.result)return;
+dl.innerHTML='';
+d.result.slice(0,8).forEach(function(it){
+var o=document.createElement('option');o.value=it.symbol;
+o.label=it.description||'';dl.appendChild(o);});
+}).catch(function(){});
+},300);}
 /* The rows that are actually in the cycle, in order. The preview walks
    this same list, which is what keeps the two in step. */
 function cyc(){var c=[];document.querySelectorAll('#sl li[data-id]').forEach(function(li){

@@ -1,5 +1,6 @@
 #include "update_check.h"
 #include "../version.h"
+#include "NetGate.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -42,6 +43,7 @@ UpdateInfo checkForUpdate() {
         return info;
     }
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     // GitHub serves raw files from a CDN and redirects to it; without this
     // the GET comes back 301/302 and reads as a failure. calendar_api and
@@ -95,6 +97,11 @@ bool performOTAUpdate(const String& url, void (*onProgressPercent)(int)) {
         return false;
     }
 
+    // Doubly true for a firmware download: this is the single most heap-
+    // hungry network operation in the whole firmware (decompressing/flashing
+    // a large binary while holding a TLS session open), so it especially
+    // cannot afford to share the moment with anything else's handshake.
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     g_progressCallback = onProgressPercent;
     httpUpdate.onProgress(onHttpUpdateProgress);
 

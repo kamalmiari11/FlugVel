@@ -22,6 +22,8 @@
 #include "config/Config.h"
 #include "config/CalendarFeeds.h"
 #include "config/NotesSource.h"
+#include "config/StockSource.h"
+#include "api/NetGate.h"
 #include "screens/PlaneTrackerScreen.h"
 #include "screens/DashboardScreen.h"
 #include "screens/SettingsScreen.h"
@@ -628,6 +630,11 @@ void setup() {
 
     Serial.println("\n\n=== FlugVel Starting ===\n");
 
+    // Before anything network-related can possibly start (WiFi isn't even
+    // in station mode yet at this point) - see NetGate.h for why every
+    // HTTPS call in the firmware needs this.
+    NetGate::begin();
+
     // ---- GPIO Setup ----
     // Bring the backlight up DARK first (PWM, not a bare digitalWrite) so
     // the panel's uninitialised frame buffer isn't briefly lit on screen -
@@ -695,6 +702,7 @@ void setup() {
     // as a seed, so a device that already had one calendar keeps it.
     CalendarFeeds::begin(portal.getCalendarUrl());
     NotesSource::begin();
+    StockSource::begin();
 
     if (hasWiFi) {
         portal.loadLocationEEPROM();

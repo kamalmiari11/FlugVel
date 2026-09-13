@@ -98,6 +98,17 @@ function start() {
         T(32, y + 3, n[1], n[0] ? t.dim : fg, 16);
       });
     }],
+    stock: ["Stocks", () => { // StockScreen::drawList, ROW_H 36
+      [["AAPL", "$182.45", "+1.2%", true], ["TSLA", "$241.10", "-0.8%", false],
+       ["MSFT", "$417.30", "+0.3%", true], ["GOOG", "not found", null, null]].forEach((s, i) => {
+        const y = 26 + i * 36, sel = i === 0;
+        R(6, y, 308, 32, sel ? t.fg : t.bg); if (sel) R(6, y, 4, 32, t.ac);
+        T(16, y + 4, s[0], sel ? t.bg : t.fg, 16);
+        if (s[3] === null) { T(306, y + 12, s[1], sel ? t.bg : t.dim, 8, "right"); return; }
+        T(306, y + 4, s[1], sel ? t.bg : t.fg, 16, "right");
+        T(306, y + 24, s[2], sel ? t.bg : (s[3] ? t.ok : "#b03020"), 8, "right");
+      });
+    }],
     focus: ["Focus timer", () => {
       T(14, 34, "SESSION", t.dim); R(14, 46, 292, 1, t.rule);
       R(10, 56, 300, 34, t.fg); R(10, 56, 4, 34, t.ac);

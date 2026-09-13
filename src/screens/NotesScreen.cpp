@@ -250,9 +250,10 @@ void NotesScreen::draw() {
         return;
     }
     if (!_fetched) {
-        // Fetch is running on its own task (see startFetch()) - this just
-        // shows a hint instead of leaving the body blank while it's out.
-        emptyState("Loading notes...", "");
+        // Fetch is running on its own task (see startFetch()) - a static
+        // skeleton instead of leaving the body blank (or just text) while
+        // it's out, matching the row shape drawList() below will fill in.
+        drawSkeletonList();
         return;
     }
 
@@ -396,6 +397,28 @@ void NotesScreen::tickMarqueeRow() {
     tft->setTextColor(textCol, t.selectBg);
     tft->setCursor(textX, y + (ROW_H - 2 - 16) / 2);
     tft->print(text);
+}
+
+// Static placeholder rows shown while the first fetch is still out - same
+// marker/text column positions drawList() below uses, just dim bars
+// instead of real text since there's nothing to show yet.
+void NotesScreen::drawSkeletonList() {
+    const Theme &t = ThemeManager::current();
+    const int W = tft->width();
+    const int rowX = 6, rowW = W - 12;
+    const int top = listTop();
+    const int rows = visibleRows();
+
+    for (int i = 0; i < rows; i++) {
+        int y = top + i * ROW_H;
+        tft->fillCircle(rowX + 12, y + (ROW_H - 2) / 2, 2, t.rule);   // marker placeholder
+        // Varying width so the list doesn't look like a single repeated
+        // bar - real lines are never all the same length either.
+        int textW = 80 + (i % 3) * 40;
+        int maxW = rowW - 26 - 4;
+        if (textW > maxW) textW = maxW;
+        tft->fillRoundRect(rowX + 26, y + (ROW_H - 2 - 14) / 2, textW, 14, 2, t.rule);
+    }
 }
 
 void NotesScreen::drawList() {

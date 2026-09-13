@@ -3,6 +3,8 @@
 #include "../screens/ScreenRegistry.h"
 #include "../config/CalendarFeeds.h"
 #include "../config/NotesSource.h"
+#include "../config/StockSource.h"
+#include "../api/stock_api.h"
 #include "../screens/GamesScreen.h"
 #include "../ui/Theme.h"
 #include <nvs_flash.h>
@@ -441,8 +443,8 @@ void CaptivePortal::setupRoutes()
     });
     server.on("/config", HTTP_POST, [this]() {
         if (guardWithPin()) return;
-        applyConfigPost();
-        server.send(200, "text/html", configPageHtml(true));
+        String stockWarning = applyConfigPost();
+        server.send(200, "text/html", configPageHtml(true, stockWarning));
     });
 
     // One page, three tabs, both modes. In AP mode it opens on Wi-Fi
@@ -627,9 +629,10 @@ bool CaptivePortal::consumeConfigChanged() {
 // stored - the browser should never send them, but a hand-crafted POST
 // could, and an unknown id in the cycle would be a screen that can never be
 // shown or removed.
-void CaptivePortal::applyConfigPost()
+String CaptivePortal::applyConfigPost()
 {
     Config &cfg = ConfigStore::get();
+    String stockWarning; // see the Stock block below for when this gets filled in
 
     // The screen order arrives in a hidden field that the page's JS fills in
     // on submit. Everything else on the form is a plain input the browser
@@ -788,6 +791,48 @@ void CaptivePortal::applyConfigPost()
         NotesSource::save();
     }
 
+    // Stock quotes - key + up to MAX_SYMBOLS ticker rows, rebuilt from
+    // scratch each save (same reasoning as Calendar's feed rebuild above)
+    // so clearing a row genuinely drops that symbol rather than leaving a
+    // hole. Joined back into one comma-separated string for storage -
+    // StockSource's own parsing already treats that as the source of
+    // truth, so the row-based form is purely a UI convenience.
+    {
+        String key = server.arg("stok"); key.trim();
+        String syms;
+        for (int i = 0; i < StockSource::MAX_SYMBOLS; i++) {
+            String sym = server.arg((String("ssym") + i).c_str());
+            sym.trim();
+            if (sym.length() == 0) continue;
+            if (syms.length() > 0) syms += ",";
+            syms += sym;
+        }
+        int stockRefresh = num("sref", 5, 60, StockSource::refreshMinutes());
+        StockSource::set(key, syms, stockRefresh);
+        StockSource::save();
+
+        // Best-effort ticker check, right here rather than waiting for the
+        // Stock screen's own background fetch to discover a typo. Only
+        // possible when the device is ALREADY on real WiFi at save time -
+        // true when this page is reached by editing later on the home
+        // network (/config), never during first-time setup (/save), which
+        // runs before WiFi.begin() for the just-entered credentials has
+        // even been attempted. That earlier case is left to the Stock
+        // screen's existing "unavailable" fallback, since there is no
+        // internet path (on the device OR the phone's browser, which is
+        // still on the portal's own isolated AP) to check anything with.
+        if (WiFi.status() == WL_CONNECTED && key.length() > 0) {
+            for (int i = 0; i < StockSource::symbolCount(); i++) {
+                String sym = StockSource::symbolAt(i);
+                StockQuote q;
+                if (!fetchStockQuote(sym, key, q)) {
+                    if (stockWarning.length() > 0) stockWarning += ", ";
+                    stockWarning += sym;
+                }
+            }
+        }
+    }
+
     ConfigStore::save();
     _configChanged = true;
 
@@ -795,6 +840,8 @@ void CaptivePortal::applyConfigPost()
                   enabledCount == 0 ? 1 : enabledCount);
     Serial.printf("[CaptivePortal] Options: brightness %u%% legend %u date %u left %u\n",
                   cfg.brightness, cfg.legend, cfg.showDate, cfg.leftHanded);
+
+    return stockWarning;
 }
 
 void CaptivePortal::handle()

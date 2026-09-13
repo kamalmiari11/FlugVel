@@ -263,9 +263,10 @@ void CalendarScreen::draw() {
         return;
     }
     if (!_fetched) {
-        // Fetch is running on its own task (see startFetch()) - this just
-        // shows a hint instead of leaving the body blank while it's out.
-        emptyState("Loading calendar...", "");
+        // Fetch is running on its own task (see startFetch()) - a static
+        // skeleton instead of leaving the body blank (or just text) while
+        // it's out, matching the row shape drawList() below will fill in.
+        drawSkeletonList();
         return;
     }
     if (_fetchBadUrl && _count == 0) {
@@ -283,6 +284,27 @@ void CalendarScreen::draw() {
 
     if (_detail) drawDetail();
     else         drawList();
+}
+
+// Static placeholder rows shown while the first fetch is still out - same
+// column positions drawList() below uses (relLabel/timeLabel on the left,
+// title starting at rowX+78), just dim bars instead of real text since
+// there's nothing to show yet.
+void CalendarScreen::drawSkeletonList() {
+    const Theme &t = ThemeManager::current();
+    const int W = tft->width();
+    const int rowX = 6;
+
+    for (int i = 0; i < VISIBLE_ROWS; i++) {
+        int y = LIST_TOP + i * ROW_H;
+        tft->fillRect(rowX + 10, y + 3, 28, 6, t.rule);   // relLabel placeholder
+        tft->fillRect(rowX + 10, y + 15, 28, 6, t.rule);  // timeLabel placeholder
+        // Varying width so the list doesn't look like a single repeated
+        // bar - real titles are never all the same length either.
+        int titleW = 90 + (i % 3) * 30;
+        if (titleW > W - 78 - 20) titleW = W - 78 - 20;
+        tft->fillRoundRect(rowX + 78, y + (ROW_H - 2 - 14) / 2, titleW, 14, 2, t.rule);
+    }
 }
 
 void CalendarScreen::drawList() {

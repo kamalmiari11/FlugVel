@@ -109,6 +109,7 @@ private:
     static void fetchTaskEntry(void *param);
     void applyPending();
     void drawProgress();
+    void drawSkeletonList();
     void drawList();
     void emptyState(const char* line1, const char* line2);
 

@@ -1,4 +1,5 @@
 #include "geocoding.h"
+#include "NetGate.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -40,6 +41,7 @@ bool geocodeCity(const String &city, const String &countryHint,
     Serial.println("\n==============================");
     Serial.printf("[Geocode] Looking up: %s\n", city.c_str());
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     http.setTimeout(10000);
     http.begin(url);

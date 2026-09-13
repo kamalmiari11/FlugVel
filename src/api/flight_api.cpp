@@ -1,4 +1,5 @@
 #include "flight_api.h"
+#include "NetGate.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -390,6 +391,7 @@ static Attempt tryProvider(Provider &p, float userLat, float userLon, Flight &ou
     String url = p.buildUrl(userLat, userLon, SEARCH_RADIUS_KM);
     Serial.printf("[API] %s: GET %s\n", p.name, url.c_str());
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     http.setConnectTimeout(8000);
     http.setTimeout(10000);
@@ -456,6 +458,7 @@ static bool lookupCountryByHex(const String &hex, String &countryOut) {
 
     String url = "https://api.adsbdb.com/v0/aircraft/" + hex;
 
+    NetGate::Lock netLock; // see NetGate.h - only one HTTPS handshake system-wide at a time
     HTTPClient http;
     http.setConnectTimeout(6000);
     http.setTimeout(8000);

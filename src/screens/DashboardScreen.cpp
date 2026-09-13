@@ -14,7 +14,6 @@ DashboardScreen::DashboardScreen(TFT_eSPI* display)
       _mode(VIEW_WEEK), _selectedDay(0),
       _hourlyLoaded(false), _hourlyLoadedForDay(-1),
       _hourlyPending(false), _hourlyFetching(false), _hourlyFailed(false),
-      _skelLastTick(0), _scanPos(0), _scanDir(1),
       _refreshGeneration(0), _prefetchRunning(false),
       _needsFullRedraw(true), _lastRefresh(0),
       _highlightedHourIndex(-1), _lastHourCheck(0), _hourScroll(0)
@@ -363,16 +362,6 @@ void DashboardScreen::update() {
         }
     }
 
-    // Animate the loading skeleton (only once a skeleton draw has laid down
-    // the static parts - _needsFullRedraw still set means it hasn't yet).
-    if (!_needsFullRedraw && skeletonActive()) {
-        unsigned long ms = millis();
-        if (ms - _skelLastTick >= SKEL_TICK_MS) {
-            _skelLastTick = ms;
-            tickSkeleton();
-        }
-    }
-
     if (!_hasCoords) return;
 
     unsigned long now = millis();
@@ -380,11 +369,6 @@ void DashboardScreen::update() {
         _lastRefresh = now;
         refreshWeatherNow();
     }
-}
-
-bool DashboardScreen::skeletonActive() const {
-    if (_mode == VIEW_WEEK)  return !_realWeather;
-    return !_hourlyLoaded && !_hourlyFailed;   // day detail, still waiting
 }
 
 void DashboardScreen::onEncoderUp() {
@@ -483,9 +467,9 @@ void DashboardScreen::draw() {
 }
 
 // ================ LOADING SKELETON ================
-// Shown instead of blocking the UI while weather data is still in flight.
-// A bright accent scan line sweeps up and down the band where the real
-// temperature figures will land; everything else is drawn dim.
+// Shown instead of blocking the UI while weather data is still in flight -
+// static dim placeholder bars where the real figures will land, no
+// animation.
 
 void DashboardScreen::drawWeekSkeleton() {
     const Theme &t = ThemeManager::current();
@@ -513,10 +497,6 @@ void DashboardScreen::drawWeekSkeleton() {
         tft->fillRect(TABLE_COL_HI,   y, 22, 6, t.rule);
         tft->fillRect(TABLE_COL_LO,   y, 22, 6, t.rule);
     }
-
-    _scanPos = TABLE_TOP + 14;
-    _scanDir = 1;
-    _skelLastTick = millis();
 }
 
 void DashboardScreen::drawDaySkeleton() {
@@ -545,41 +525,10 @@ void DashboardScreen::drawDaySkeleton() {
     tft->setTextColor(t.fgDim, t.bg);
     tft->setCursor(10, PLOT_READOUT_Y);
     tft->print("Loading hourly forecast");
-
-    _scanPos = PLOT_TOP;
-    _scanDir = 1;
-    _skelLastTick = millis();
 }
 
 // Partial redraw: erase the old scan line (restoring the dim baseline it may
 // have crossed), step it, draw it at the new position.
-void DashboardScreen::tickSkeleton() {
-    const Theme &t = ThemeManager::current();
-    const int W = tft->width();
-    int x0, x1, top, bot, mid;
-
-    if (_mode == VIEW_DAY_DETAIL) {
-        x0 = PLOT_LEFT; x1 = W - 10;
-        top = PLOT_TOP; bot = PLOT_BOTTOM;
-        mid = (PLOT_TOP + PLOT_BOTTOM) / 2;
-    } else {
-        x0 = TABLE_COL_HI - 4; x1 = W - 12;
-        top = TABLE_TOP + 14;
-        bot = TABLE_TOP + 16 + (_weather.dayCount > 0 ? _weather.dayCount : 7) * TABLE_ROW_H;
-        mid = -1;
-    }
-
-    tft->drawFastHLine(x0, _scanPos, x1 - x0, t.bg);          // erase old line
-    if (mid >= 0)                                             // restore baseline
-        for (int x = x0; x < x1; x += 6) tft->drawFastHLine(x, mid, 3, t.rule);
-
-    _scanPos += _scanDir * 3;
-    if (_scanPos >= bot) { _scanPos = bot; _scanDir = -1; }
-    if (_scanPos <= top) { _scanPos = top; _scanDir =  1; }
-
-    tft->drawFastHLine(x0, _scanPos, x1 - x0, t.accent);      // draw new line
-}
-
 // Compact single strip: big temp on the left, condition + location on the
 // right, so the rest of the (landscape) screen is free for the day table.
 void DashboardScreen::drawCurrentConditions() {

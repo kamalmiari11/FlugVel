@@ -269,8 +269,12 @@ private:
     // saved config so it always reflects what the device actually has -
     // including screens added by a firmware update that the stored config
     // has never heard of.
-    String configPageHtml(bool justSaved);
+    String configPageHtml(bool justSaved, const String &stockWarning = "");
     String donePageHtml(bool reconnecting);
-    void   applyConfigPost();
+    // Returns a comma-separated list of tickers that failed to verify
+    // against Finnhub, or "" if none/not checked. Only actually checks
+    // anything when WiFi is already connected at save time - see the
+    // definition for why that's the only case this can run in.
+    String applyConfigPost();
     void   applyLocationArgs();
 };
