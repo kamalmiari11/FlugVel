@@ -1,6 +1,9 @@
 #pragma once
 #include "Screen.h"
 #include "../api/notes_api.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
 
 // A short list pulled from one Notion page (see config/NotesSource.h for
 // how it's configured): to-do checkboxes, bullet and numbered list items,
@@ -89,7 +92,22 @@ private:
     int listTop() const { return _todoTotal > 0 ? LIST_TOP_PROGRESS : LIST_TOP; }
     int visibleRows() const;   // depends on listTop() and the panel's actual height
 
-    void doFetch();
+    // Fetch runs on its own short-lived FreeRTOS task (same pattern as
+    // CalendarScreen - see its header for the rationale) so the Notion
+    // round-trip never blocks loop()/input. It writes into _pending* below;
+    // only update() (UI thread, see applyPending()) ever writes _items/etc,
+    // since draw() reads those unlocked. _fetching prevents starting a
+    // second fetch while one is already in flight.
+    SemaphoreHandle_t _fetchMutex = nullptr;
+    volatile bool _fetching = false;
+    volatile bool _pendingReady = false;
+    NoteItem _pendingItems[MAX_ITEMS];
+    int  _pendingCount;
+    int  _pendingTodoTotal, _pendingTodoChecked;
+    int  _pendingError;
+    void startFetch();
+    static void fetchTaskEntry(void *param);
+    void applyPending();
     void drawProgress();
     void drawList();
     void emptyState(const char* line1, const char* line2);

@@ -8,8 +8,10 @@ NotesScreen::NotesScreen(TFT_eSPI* display)
     : Screen(display), _count(0), _visibleCount(0), _sel(0), _scroll(0),
       _todoTotal(0), _todoChecked(0),
       _fetched(false), _lastError(0), _lastFetch(0), _needsRedraw(true),
-      _marqueeTick(0), _marqueeNextTick(0) {
+      _marqueeTick(0), _marqueeNextTick(0),
+      _pendingCount(0), _pendingTodoTotal(0), _pendingTodoChecked(0), _pendingError(0) {
     memset(_open, 0, sizeof(_open));
+    _fetchMutex = xSemaphoreCreateMutex();
 }
 
 void NotesScreen::init() {
@@ -27,24 +29,58 @@ int NotesScreen::visibleRows() const {
 }
 
 // ---- data ----
-void NotesScreen::doFetch() {
-    const Theme &t = ThemeManager::current();
-    const int W = tft->width();
+// Kicks off the fetch on its own short-lived FreeRTOS task (see
+// CalendarScreen::startFetch() for the rationale - same reasoning applies
+// here: the Notion round-trip used to block loop()/input for however long
+// it took to answer or time out).
+void NotesScreen::startFetch() {
+    if (_fetching) return; // one at a time
+    _fetching = true;
+    _needsRedraw = true; // so draw() can show the loading hint
+    xTaskCreatePinnedToCore(fetchTaskEntry, "notesFetch", 12288, this, 1, nullptr, 0);
+}
 
-    // The Notion fetch is blocking (a second or so) - show a hint first,
-    // same as the calendar screen's own doFetch().
-    tft->fillRect(0, 20, W, tft->height() - 50, t.bg);
-    tft->setTextDatum(MC_DATUM);
-    tft->setTextSize(1);
-    tft->setTextColor(t.fgDim);
-    tft->drawString("Loading notes...", W / 2, 110);
-    tft->setTextDatum(TL_DATUM);
+void NotesScreen::fetchTaskEntry(void *param) {
+    NotesScreen *self = static_cast<NotesScreen*>(param);
 
-    int got = fetchNotionNotes(_items, MAX_ITEMS, NotesSource::token(),
+    // Scratch, not self->_items directly - draw() reads _items from the UI
+    // thread with no lock and must never see a half-built list.
+    static NoteItem scratch[MAX_ITEMS];
+    int todoTotal = 0, todoChecked = 0;
+    int got = fetchNotionNotes(scratch, MAX_ITEMS, NotesSource::token(),
                                 NotesSource::pageId(), NotesSource::showChecked(),
-                                &_todoTotal, &_todoChecked);
-    if (got >= 0) { _count = got; _lastError = 0; }
-    else          { _count = 0;   _lastError = got; }
+                                &todoTotal, &todoChecked);
+
+    if (xSemaphoreTake(self->_fetchMutex, portMAX_DELAY) == pdTRUE) {
+        int n = (got >= 0) ? got : 0;
+        for (int i = 0; i < n; i++) self->_pendingItems[i] = scratch[i];
+        self->_pendingCount      = n;
+        self->_pendingError      = (got >= 0) ? 0 : got;
+        self->_pendingTodoTotal  = todoTotal;
+        self->_pendingTodoChecked = todoChecked;
+        self->_pendingReady      = true;
+        self->_fetching          = false;
+        xSemaphoreGive(self->_fetchMutex);
+    }
+
+    vTaskDelete(nullptr);
+}
+
+// Runs on the UI thread (called from update()) once the background task has
+// a result waiting - see CalendarScreen::applyPending() for why this copy
+// has to happen here and not in the task itself.
+void NotesScreen::applyPending() {
+    if (xSemaphoreTake(_fetchMutex, 0) != pdTRUE) return; // task mid-write, try again next loop
+    if (!_pendingReady) { xSemaphoreGive(_fetchMutex); return; }
+
+    for (int i = 0; i < _pendingCount; i++) _items[i] = _pendingItems[i];
+    _count      = _pendingCount;
+    _lastError  = _pendingError;
+    _todoTotal  = _pendingTodoTotal;
+    _todoChecked = _pendingTodoChecked;
+
+    _pendingReady = false;
+    xSemaphoreGive(_fetchMutex);
 
     // Fresh fetch, fresh accordion state - everything closed, then (if
     // the setting's on) the first day on the page opens itself.
@@ -133,10 +169,9 @@ void NotesScreen::toggleDay(int headingIdx) {
 }
 
 // Flips one to-do's checked state. Optimistic: the box and text update
-// immediately (via a direct draw() call, same "show it, then do the slow
-// part" order doFetch() already uses for its own loading message) and
-// only the Notion sync happens in the background of that - if it fails,
-// the change is quietly reverted rather than surfaced as an error state.
+// immediately (via a direct draw() call) and only the Notion sync happens
+// after that - if it fails, the change is quietly reverted rather than
+// surfaced as an error state.
 void NotesScreen::toggleCheck(int idx) {
     NoteItem &n = _items[idx];
     bool newChecked = !n.checked;
@@ -166,11 +201,13 @@ void NotesScreen::onConfigChanged() {
 }
 
 void NotesScreen::update() {
+    if (_pendingReady) applyPending();
+
     if (NotesSource::usable() && WiFi.status() == WL_CONNECTED) {
         bool stale = !_fetched
                    || (_lastError != 0 && millis() - _lastFetch > 120000UL) // retry sooner after a failure
                    || (millis() - _lastFetch > REFRESH_MS);
-        if (stale) doFetch();
+        if (stale) startFetch();
     }
 
     // Paces the selected row's text scroll independently of any fetch -
@@ -212,7 +249,12 @@ void NotesScreen::draw() {
         emptyState("No notes linked", "add a Notion page during setup");
         return;
     }
-    if (!_fetched) return;   // update() will fetch + redraw
+    if (!_fetched) {
+        // Fetch is running on its own task (see startFetch()) - this just
+        // shows a hint instead of leaving the body blank while it's out.
+        emptyState("Loading notes...", "");
+        return;
+    }
 
     if (_lastError == -2) { emptyState("Can't access page", "check the token & sharing"); return; }
     if (_lastError == -3) { emptyState("Page not found", "check the page link"); return; }

@@ -1,6 +1,9 @@
 #pragma once
 #include "Screen.h"
 #include "../api/calendar_api.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
 
 class CaptivePortal;
 
@@ -39,10 +42,12 @@ private:
 
     // Collapses the same event arriving from more than one feed into one
     // row, and puts the merged list back in start order (each feed arrives
-    // sorted, but concatenating them does not stay sorted). Both return /
-    // operate on the new count.
-    int  mergeDuplicates(int count);
-    void sortByStart(int count);
+    // sorted, but concatenating them does not stay sorted). Both operate on
+    // whatever CalEvent array is passed in (not necessarily _events - the
+    // fetch task works on its own scratch buffer off the UI thread) and
+    // return the new count.
+    static int  mergeDuplicates(CalEvent *events, int count);
+    static void sortByStart(CalEvent *events, int count);
 
     CalEvent _events[MAX_EVENTS];
     int  _count;
@@ -57,7 +62,25 @@ private:
 
     bool _needsRedraw;
 
-    void doFetch();
+    // Fetch runs on its own short-lived FreeRTOS task (same pattern
+    // DashboardScreen uses for on-demand hourly forecasts - see
+    // DashboardScreen::startOnDemandHourly()) so the .ics round-trip(s)
+    // never block loop()/input. It writes into _pending* below, guarded by
+    // _fetchMutex, rather than touching _events/_count directly - those are
+    // read by draw() on the UI thread with no lock at all, same as every
+    // other screen, so only the UI thread (in update(), see applyPending())
+    // is allowed to write them. This mirrors main.cpp's pendingFlightReady
+    // handoff for the same reason. _fetching prevents starting a second
+    // fetch while one is already in flight.
+    SemaphoreHandle_t _fetchMutex = nullptr;
+    volatile bool _fetching = false;
+    volatile bool _pendingReady = false;
+    CalEvent _pendingEvents[MAX_EVENTS];
+    int  _pendingCount;
+    bool _pendingOk, _pendingBadUrl, _pendingFail;
+    void startFetch();
+    static void fetchTaskEntry(void *param);
+    void applyPending();
     void drawList();
     void drawDetail();
     void emptyState(const char* line1, const char* line2);

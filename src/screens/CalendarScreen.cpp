@@ -9,7 +9,10 @@
 CalendarScreen::CalendarScreen(TFT_eSPI* display, CaptivePortal* portal)
     : Screen(display), _portal(portal), _count(0), _sel(0), _scroll(0),
       _detail(false), _fetched(false), _fetchFailed(false), _fetchBadUrl(false),
-      _lastFetch(0), _needsRedraw(true) {}
+      _lastFetch(0), _needsRedraw(true),
+      _pendingCount(0), _pendingOk(false), _pendingBadUrl(false), _pendingFail(false) {
+    _fetchMutex = xSemaphoreCreateMutex();
+}
 
 void CalendarScreen::init() {
     _detail = false;
@@ -17,17 +20,19 @@ void CalendarScreen::init() {
 }
 
 // ---- data ----
-void CalendarScreen::doFetch() {
-    const Theme &t = ThemeManager::current();
-    const int W = tft->width();
+// Kicks off the fetch on its own short-lived FreeRTOS task (mirrors
+// DashboardScreen::startOnDemandHourly()) instead of running it here on the
+// UI thread - the .ics round-trip(s) used to block loop()/input for as long
+// as every configured feed took to answer or time out.
+void CalendarScreen::startFetch() {
+    if (_fetching) return; // one at a time
+    _fetching = true;
+    _needsRedraw = true; // so draw() can show the loading hint
+    xTaskCreatePinnedToCore(fetchTaskEntry, "calFetch", 12288, this, 1, nullptr, 0);
+}
 
-    // The .ics fetch is blocking (a couple of seconds) - show a hint first.
-    tft->fillRect(0, 20, W, tft->height() - 50, t.bg);
-    tft->setTextDatum(MC_DATUM);
-    tft->setTextSize(1);
-    tft->setTextColor(t.fgDim);
-    tft->drawString("Loading calendar...", W / 2, 110);
-    tft->setTextDatum(TL_DATUM);
+void CalendarScreen::fetchTaskEntry(void *param) {
+    CalendarScreen *self = static_cast<CalendarScreen*>(param);
 
     // WINDOW_DAYS is the ceiling this screen is built around; the user can
     // ask for a shorter horizon, which also means fewer events parsed and
@@ -39,7 +44,9 @@ void CalendarScreen::doFetch() {
     // Feeds are fetched one at a time into a scratch buffer and appended,
     // rather than all at once, because each fetch already needs a few KB of
     // heap for the HTTP body and running them concurrently is the fastest
-    // way to run out of it.
+    // way to run out of it. Scratch, not self->_events directly - draw()
+    // reads _events from the UI thread and must never see a half-built list.
+    static CalEvent scratch[MAX_EVENTS];
     int  n = 0;
     bool anyOk = false, anyBadUrl = false, anyFail = false;
 
@@ -47,10 +54,10 @@ void CalendarScreen::doFetch() {
         const CalFeed &feed = CalendarFeeds::at(f);
         if (!feed.usable()) continue;
 
-        int got = fetchCalendarEvents(_events + n, MAX_EVENTS - n, feed.url, window);
+        int got = fetchCalendarEvents(scratch + n, MAX_EVENTS - n, feed.url, window);
         if (got >= 0) {
             anyOk = true;
-            for (int i = 0; i < got; i++) _events[n + i].feedIndex = (uint8_t)f;
+            for (int i = 0; i < got; i++) scratch[n + i].feedIndex = (uint8_t)f;
             n += got;
         } else if (got == -2) {
             anyBadUrl = true;
@@ -64,13 +71,13 @@ void CalendarScreen::doFetch() {
     if (!ConfigStore::get().calAllDay) {
         int kept = 0;
         for (int i = 0; i < n; i++) {
-            if (!_events[i].allDay) _events[kept++] = _events[i];
+            if (!scratch[i].allDay) scratch[kept++] = scratch[i];
         }
         n = kept;
     }
 
-    if (ConfigStore::get().calMerge) n = mergeDuplicates(n);
-    sortByStart(n);
+    if (ConfigStore::get().calMerge) n = mergeDuplicates(scratch, n);
+    sortByStart(scratch, n);
 
     // Drop today's events once they have actually ENDED, not when they
     // start - a meeting running right now should stay on the list. iCal
@@ -80,8 +87,8 @@ void CalendarScreen::doFetch() {
         time_t now = time(nullptr);
         int kept = 0;
         for (int i = 0; i < n; i++) {
-            bool finished = !_events[i].allDay && _events[i].end != 0 && _events[i].end <= now;
-            if (!finished) _events[kept++] = _events[i];
+            bool finished = !scratch[i].allDay && scratch[i].end != 0 && scratch[i].end <= now;
+            if (!finished) scratch[kept++] = scratch[i];
         }
         n = kept;
     }
@@ -91,10 +98,41 @@ void CalendarScreen::doFetch() {
     int cap = ConfigStore::get().calMaxEvents;
     if (cap > 0 && n > cap) n = cap;
 
-    if (anyOk)           { _count = n; _fetchFailed = false; _fetchBadUrl = false; }
-    else if (anyBadUrl)  { _fetchFailed = true;  _fetchBadUrl = true; }
-    else if (anyFail)    { _fetchFailed = true;  _fetchBadUrl = false; }
-    else                 { _count = 0; _fetchFailed = false; _fetchBadUrl = false; }
+    // ---- hand the result to _pending* under the mutex - update() (UI
+    // thread) is the only thing that ever copies from there into the live
+    // _events/_count/etc that draw() reads unlocked, so draw() never races
+    // this task's write. See applyPending(). ----
+    if (xSemaphoreTake(self->_fetchMutex, portMAX_DELAY) == pdTRUE) {
+        for (int i = 0; i < n; i++) self->_pendingEvents[i] = scratch[i];
+        self->_pendingCount   = n;
+        self->_pendingOk      = anyOk;
+        self->_pendingBadUrl  = anyBadUrl;
+        self->_pendingFail    = anyFail;
+        self->_pendingReady   = true;
+        self->_fetching       = false;
+        xSemaphoreGive(self->_fetchMutex);
+    }
+
+    vTaskDelete(nullptr);
+}
+
+// Runs on the UI thread (called from update()) once the background task has
+// a result waiting - copies _pending* into the live members draw() reads,
+// under a brief mutex hold so the background task can't be mid-write to
+// _pending* at the same moment.
+void CalendarScreen::applyPending() {
+    if (xSemaphoreTake(_fetchMutex, 0) != pdTRUE) return; // task mid-write, try again next loop
+    if (!_pendingReady) { xSemaphoreGive(_fetchMutex); return; }
+
+    for (int i = 0; i < _pendingCount; i++) _events[i] = _pendingEvents[i];
+
+    if (_pendingOk)          { _count = _pendingCount; _fetchFailed = false; _fetchBadUrl = false; }
+    else if (_pendingBadUrl) { _fetchFailed = true;  _fetchBadUrl = true; }
+    else if (_pendingFail)   { _fetchFailed = true;  _fetchBadUrl = false; }
+    else                     { _count = 0; _fetchFailed = false; _fetchBadUrl = false; }
+
+    _pendingReady = false;
+    xSemaphoreGive(_fetchMutex);
 
     _fetched = true;
     _lastFetch = millis();
@@ -111,14 +149,14 @@ void CalendarScreen::doFetch() {
 // which is weaker but better than showing the row twice.
 //
 // Earlier entries win, so the event keeps the feed listed first.
-int CalendarScreen::mergeDuplicates(int count) {
+int CalendarScreen::mergeDuplicates(CalEvent *events, int count) {
     if (count < 2) return count;
 
     int kept = 0;
     for (int i = 0; i < count; i++) {
         bool dup = false;
         for (int j = 0; j < kept; j++) {
-            const CalEvent &a = _events[i], &b = _events[j];
+            const CalEvent &a = events[i], &b = events[j];
             if (a.start != b.start) continue;
             if (a.uidHash != 0 && b.uidHash != 0) {
                 if (a.uidHash == b.uidHash) { dup = true; break; }
@@ -126,7 +164,7 @@ int CalendarScreen::mergeDuplicates(int count) {
                 dup = true; break;
             }
         }
-        if (!dup) _events[kept++] = _events[i];
+        if (!dup) events[kept++] = events[i];
     }
     return kept;
 }
@@ -134,15 +172,15 @@ int CalendarScreen::mergeDuplicates(int count) {
 // Each feed arrives sorted, but concatenating several does not stay sorted.
 // Insertion sort: the list is at most MAX_EVENTS (20) and nearly ordered
 // already, which is the case it handles best.
-void CalendarScreen::sortByStart(int count) {
+void CalendarScreen::sortByStart(CalEvent *events, int count) {
     for (int i = 1; i < count; i++) {
-        CalEvent key = _events[i];
+        CalEvent key = events[i];
         int j = i - 1;
-        while (j >= 0 && _events[j].start > key.start) {
-            _events[j + 1] = _events[j];
+        while (j >= 0 && events[j].start > key.start) {
+            events[j + 1] = events[j];
             j--;
         }
-        _events[j + 1] = key;
+        events[j + 1] = key;
     }
 }
 
@@ -154,6 +192,8 @@ void CalendarScreen::onConfigChanged() {
 }
 
 void CalendarScreen::update() {
+    if (_pendingReady) applyPending();
+
     if (CalendarFeeds::usableCount() == 0) return;   // nothing to fetch
     if (WiFi.status() != WL_CONNECTED) return;
     if (time(nullptr) < 1600000000) return;               // clock not synced
@@ -161,7 +201,7 @@ void CalendarScreen::update() {
     bool stale = !_fetched
                || (_fetchFailed && millis() - _lastFetch > 120000UL) // retry sooner after a failure
                || (millis() - _lastFetch > REFRESH_MS);
-    if (stale) doFetch();
+    if (stale) startFetch();
 }
 
 // ---- date helpers ----
@@ -222,7 +262,12 @@ void CalendarScreen::draw() {
         emptyState("No calendar linked", "add an iCal link during setup");
         return;
     }
-    if (!_fetched) return;                                // update() will fetch + redraw
+    if (!_fetched) {
+        // Fetch is running on its own task (see startFetch()) - this just
+        // shows a hint instead of leaving the body blank while it's out.
+        emptyState("Loading calendar...", "");
+        return;
+    }
     if (_fetchBadUrl && _count == 0) {
         emptyState("Not an iCal (.ics) link", "use the Secret iCal address");
         return;

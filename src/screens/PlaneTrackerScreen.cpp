@@ -219,14 +219,11 @@ void PlaneTrackerScreen::draw() {
             drawFlightInfo();
         }
     } else {
-        // NO FLIGHT MODE - either genuinely nothing overhead (bouncing
-        // text, exactly as before) or the first fetch since switching onto
-        // this screen is still outstanding (_fetching - see setFetching()/
-        // init()), in which case a bouncing plane bitmap stands in for it
-        // instead, so the screen never looks blank/frozen while that
-        // request is in flight. Both share the same kmlX/kmlY bounce
-        // position (advanced every 50ms by update()) - only what gets
-        // drawn at that position differs.
+        // NO FLIGHT MODE - bouncing text, always, whether or not a check is
+        // currently outstanding (_fetching). A plane bitmap only ever
+        // appears for a real flyover, once a flight is actually found (see
+        // the _hasFlight branch above) - it no longer stands in for "still
+        // searching", so nothing here reacts to _fetching at all.
         static int lastDrawnX = 50;
         static int lastDrawnY = 50;
         static int lastDrawnW = 0;
@@ -234,70 +231,40 @@ void PlaneTrackerScreen::draw() {
         static bool drawnOnce = false;
 
         const Theme &theme = ThemeManager::current();
-        const char* stateTag = _fetching ? "FETCHING" : "NO_FLIGHT";
         const int margin = 2; // small safety margin against sub-pixel/AA edges
 
-        // On first frame or when transitioning between flight / fetching /
-        // no-flight states.
-        if (_lastDrawnFlight != stateTag) {
-            _lastDrawnFlight = stateTag;
+        // On first frame after switching onto this screen, or right after a
+        // flyover/flight-info screen just cleared.
+        if (_lastDrawnFlight != "NO_FLIGHT") {
+            _lastDrawnFlight = "NO_FLIGHT";
             drawnOnce = false;
 
             clearContentArea(); // wipe whatever flight info / animation trail was showing
         }
 
-        if (_fetching) {
-            // Reuse one of the flyover bitmaps as a simple "still
-            // searching" indicator. The draw position is clamped
-            // separately from kmlX/kmlY themselves (untouched, so the
-            // shared bounce physics in updateKMLPosition() keep working
-            // exactly as they do for the text) because that bounce box was
-            // sized for the ~16px-tall bounce text - the 24px-tall bitmap
-            // could otherwise draw a few pixels past the border box.
-            int drawX = kmlX;
-            int drawY = kmlY;
-            int maxY = _borderY + _borderH - 2 - PLANE_H;
-            if (drawY > maxY) drawY = maxY;
+        // Compute the EXACT bounding box of the bounce-text glyphs at the
+        // text size we draw it at, so the erase rect always fully covers
+        // the previously drawn text - this is what fixes the trailing line.
+        tft->setTextSize(2);
+        int16_t textW = tft->textWidth(_bounceLabel);
+        int16_t textH = tft->fontHeight();
 
-            if (drawnOnce) {
-                tft->fillRect(lastDrawnX - margin, lastDrawnY - margin,
-                              lastDrawnW + margin * 2, lastDrawnH + margin * 2, theme.bg);
-            }
-
-            // East-facing: a fixed, level "still looking" pose, not a real
-            // heading - nothing has been found yet to have a heading.
-            PlaneSprite::drawLarge(tft, drawX, drawY, PlaneSprite::E, theme.accent);
-
-            lastDrawnX = drawX;
-            lastDrawnY = drawY;
-            lastDrawnW = PLANE_W;
-            lastDrawnH = PLANE_H;
-            drawnOnce = true;
-        } else {
-            // Compute the EXACT bounding box of the bounce-text glyphs at the
-            // text size we draw it at, so the erase rect always fully covers
-            // the previously drawn text - this is what fixes the trailing line.
-            tft->setTextSize(2);
-            int16_t textW = tft->textWidth(_bounceLabel);
-            int16_t textH = tft->fontHeight();
-
-            if (drawnOnce) {
-                tft->fillRect(lastDrawnX - margin, lastDrawnY - margin,
-                              lastDrawnW + margin * 2, lastDrawnH + margin * 2, theme.bg);
-            }
-
-            // Draw new bounce text at new position
-            tft->setTextColor(theme.accent);
-            tft->setCursor(kmlX, kmlY);
-            tft->println(_bounceLabel);
-
-            // Remember where we drew it
-            lastDrawnX = kmlX;
-            lastDrawnY = kmlY;
-            lastDrawnW = textW;
-            lastDrawnH = textH;
-            drawnOnce = true;
+        if (drawnOnce) {
+            tft->fillRect(lastDrawnX - margin, lastDrawnY - margin,
+                          lastDrawnW + margin * 2, lastDrawnH + margin * 2, theme.bg);
         }
+
+        // Draw new bounce text at new position
+        tft->setTextColor(theme.accent);
+        tft->setCursor(kmlX, kmlY);
+        tft->println(_bounceLabel);
+
+        // Remember where we drew it
+        lastDrawnX = kmlX;
+        lastDrawnY = kmlY;
+        lastDrawnW = textW;
+        lastDrawnH = textH;
+        drawnOnce = true;
     }
 }
 

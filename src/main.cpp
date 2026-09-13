@@ -444,8 +444,13 @@ void checkQuoteOfTheDayBG() {
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo, 5)) return; // clock not synced yet
 
-    if (timeinfo.tm_hour == 0 && timeinfo.tm_min == 0 && timeinfo.tm_yday != lastQuoteFetchDay) {
-        Serial.println("[BG] Midnight - refreshing quote of the day");
+    // lastQuoteFetchDay == -1 means nothing has ever been fetched (boot
+    // prefetch skipped it, or there was no network then) - same "don't wait
+    // for the interval" fallback the flight check above already has, so a
+    // capped boot doesn't leave the quote strip blank until next midnight.
+    bool neverFetched = lastQuoteFetchDay == -1;
+    if (neverFetched || (timeinfo.tm_hour == 0 && timeinfo.tm_min == 0 && timeinfo.tm_yday != lastQuoteFetchDay)) {
+        Serial.println(neverFetched ? "[BG] Quote never fetched - fetching now" : "[BG] Midnight - refreshing quote of the day");
         fetchQuoteBG();
     }
 }
@@ -543,8 +548,21 @@ void backgroundNetworkTask(void* pvParameters) {
 // still on screen. Resolves location and fetches weather + nearby flight
 // data up front, so the app is fully populated the moment boot finishes -
 // no second "loading" wait after the bar completes.
+// Wall-clock ceiling on the weather/flight/quote steps below, so a slow or
+// flaky-but-connected network degrades to "boot finishes, screens fill in
+// once they're ready" instead of a boot bar stuck for minutes. Each of these
+// three self-heals right after boot if skipped here: dashboard fetches on
+// its own first update() (DashboardScreen.cpp's _lastRefresh == 0 check),
+// flight fetches on the background task's next 60s-or-never-fetched pass,
+// and quote now has the same never-fetched fallback (see
+// checkQuoteOfTheDayBG() above). Location has no such background retry, so
+// it stays uncapped - see ensureLocationResolved()'s other call sites for
+// why that's an acceptable gap for now.
+static const unsigned long PREFETCH_DEADLINE_MS = 20000UL;
+
 void prefetchOnConnect(BootScreen::BootProgressFn progress) {
     wifiConnected = true;
+    unsigned long deadline = millis() + PREFETCH_DEADLINE_MS;
 
     // Advance the boot bar between each blocking step (and, for the flight
     // scan, between each provider) so it never sits frozen mid-fetch.
@@ -555,6 +573,11 @@ void prefetchOnConnect(BootScreen::BootProgressFn progress) {
     tick(0.00f, "Resolving location...");
     ensureLocationResolved();
 
+    if ((long)(millis() - deadline) >= 0) {
+        Serial.println("[Main] Prefetch deadline hit before weather - skipping to background");
+        tick(1.00f, "Ready!");
+        return;
+    }
     tick(0.18f, "Fetching weather...");
     if (dashboardScreen) {
         dashboardScreen->setTimezone(portal.getTimezone());
@@ -563,6 +586,11 @@ void prefetchOnConnect(BootScreen::BootProgressFn progress) {
         dashboardScreen->update();                            // actually run that fetch now
     }
 
+    if ((long)(millis() - deadline) >= 0) {
+        Serial.println("[Main] Prefetch deadline hit before flight scan - skipping to background");
+        tick(1.00f, "Ready!");
+        return;
+    }
     // doFlightCheck() primes lastFlightFetchAt itself, so the background
     // task counts this as a real check and will not fire another one moments
     // after boot.
@@ -577,10 +605,16 @@ void prefetchOnConnect(BootScreen::BootProgressFn progress) {
         });
     }
 
+    if ((long)(millis() - deadline) >= 0) {
+        Serial.println("[Main] Prefetch deadline hit before quote - skipping to background");
+        tick(1.00f, "Ready!");
+        return;
+    }
     // Populate the quote of the day immediately too, so it's not blank the
     // first time the plane screen is shown - the background task's
     // checkQuoteOfTheDayBG() then takes over refreshing it once a day, at
-    // local midnight, without blocking loop().
+    // local midnight (or right away if this step got skipped - see its
+    // never-fetched fallback), without blocking loop().
     tick(0.85f, "Loading quote...");
     doQuoteFetch();
 
