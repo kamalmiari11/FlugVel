@@ -1,5 +1,5 @@
 {
-  "version": "1.0.24",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.24/flugvel_1_0_24.bin",
-  "notes": "Fixed the air traffic game erasing the runway/approach lines where planes passed; fixed the boot update prompt running off the bottom of the screen; a failed update now shows a clear error instead of silently continuing"
+  "version": "1.0.25",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.25/flugvel_1_0_25.bin",
+  "notes": "Add a Stocks screen; fix cross-subsystem TLS collisions (SSL memory-allocation failures); Calendar/Notes now show a loading skeleton instead of blank/plain text"
 }
