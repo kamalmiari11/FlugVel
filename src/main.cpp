@@ -823,6 +823,7 @@ void setup() {
                 });
                 if (!ok) {
                     Serial.println("[Main] Update failed - continuing on current firmware");
+                    updatePromptScreen.showFailed(); // blocks until the user presses to continue
                     // Falls through to normal boot below on the existing version.
                 }
                 // On success, performOTAUpdate() reboots the device itself

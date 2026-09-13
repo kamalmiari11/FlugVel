@@ -646,7 +646,10 @@ void SettingsScreen::runOTAUpdate() {
         tft->drawString("Update Failed", 160, 100);
         tft->setTextSize(1);
         tft->setTextColor(theme.fgDim);
-        tft->drawString("Check the serial log for details", 160, 130);
+        tft->drawString("Please try again later.", 160, 130);
+        tft->drawString("If the problem persists,", 160, 148);
+        tft->drawString("please contact support.", 160, 166);
+        tft->setTextSize(2);
         tft->drawString("[Press to continue]", 160, 200);
         tft->setTextDatum(TL_DATUM);
 

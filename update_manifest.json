@@ -1,5 +1,5 @@
 {
-  "version": "1.0.23",
-  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.23/flugvel_1_0_23.bin",
-  "notes": "Boot, calendar and notes no longer freeze the device on a slow network; fixed the plane screen's loading indicator erasing the border and reverted it to bounce text until a flight is actually found"
+  "version": "1.0.24",
+  "url": "https://github.com/kamalmiari11/FlugVel/releases/download/v1.0.24/flugvel_1_0_24.bin",
+  "notes": "Fixed the air traffic game erasing the runway/approach lines where planes passed; fixed the boot update prompt running off the bottom of the screen; a failed update now shows a clear error instead of silently continuing"
 }

@@ -1090,6 +1090,36 @@ static void drawAirPlane(TFT_eSPI *tft, int x, int laneCenterY, int w, int h, ui
     PlaneSprite::drawSmallCentered(tft, x, laneCenterY, PlaneSprite::W, color);
 }
 
+// The runway line, the dashed approach gate and the lane dividers are only
+// painted once, on the first frame - a passing plane's erase step above
+// then permanently wipes out whichever of those pixels its own sprite bits
+// happened to sit on, since nothing ever repaints them afterward. Called
+// right after erasing a plane's old position, this restores just the guide-
+// line pixels that erase could have touched (checked against the small area
+// the sprite actually occupies, so the cost is a few pixels, not a redraw).
+static void restoreAirGuideLines(TFT_eSPI *tft, const Theme &theme, int x, int laneCenterY,
+                                  int runwayX, int approachX, int playTop, int playBottom,
+                                  int laneH, int lanes) {
+    const int half = PlaneSprite::SMALL_W / 2;
+    int x0 = x - half, x1 = x + half;
+    int y0 = laneCenterY - half, y1 = laneCenterY + half;
+
+    if (runwayX >= x0 && runwayX <= x1) {
+        tft->drawFastVLine(runwayX, y0, y1 - y0, theme.rule);
+    }
+    if (approachX >= x0 && approachX <= x1) {
+        // Same dash pattern/phase as the initial draw: 4px on, starting at
+        // playTop + 2, every 8px.
+        for (int y = playTop + 2; y < playBottom; y += 8) {
+            if (y + 4 >= y0 && y <= y1) tft->drawFastVLine(approachX, y, 4, theme.rule);
+        }
+    }
+    for (int i = 1; i < lanes; i++) {
+        int lineY = playTop + laneH * i;
+        if (lineY >= y0 && lineY <= y1) tft->drawFastHLine(x0, lineY, x1 - x0, theme.rule);
+    }
+}
+
 // What color a plane is drawn in, which is the game's whole read-at-a-glance
 // state: dim while it is still too far out to land, full brightness once it
 // crosses the approach gate, and accent when it is the one the cursor is on.
@@ -1270,6 +1300,9 @@ void GamesScreen::updateAirTraffic() {
 
         if (wasActive && (!isActive || (int)_airLastDrawnX[i] != (int)_airPlaneX[i] || wasSelected != isSelected)) {
             drawAirPlane(tft, (int)_airLastDrawnX[i], laneCenterY, AIRTRAFFIC_PLANE_W, AIRTRAFFIC_PLANE_H, theme.bg);
+            restoreAirGuideLines(tft, theme, (int)_airLastDrawnX[i], laneCenterY,
+                                  AIRTRAFFIC_RUNWAY_X, AIRTRAFFIC_APPROACH_X,
+                                  PLAY_TOP, playBottom, laneH, AIRTRAFFIC_LANES);
         }
         if (isActive) {
             bool landable = (_airPlaneX[i] - half) <= AIRTRAFFIC_APPROACH_X;

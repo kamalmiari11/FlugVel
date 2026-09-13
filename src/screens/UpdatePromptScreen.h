@@ -25,6 +25,13 @@ public:
     void showUpdatingScreen();
     void updateProgress(int percent);
 
+    // Shown when performOTAUpdate() returns false - previously silent, so
+    // a failed download just fell through to the old firmware with no
+    // indication anything had gone wrong. Blocks until either button is
+    // pressed (there's only one option here, so both mean the same thing:
+    // proceed on the current version).
+    void showFailed();
+
 private:
     TFT_eSPI* tft;
     int koButton;
