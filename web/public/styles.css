@@ -1013,3 +1013,19 @@ tr:last-child td { border-bottom: none; }
   .run-live .run-track .feature p { font-size: 13px; }
   .run-live .run-device, .run-live .run-track { top: 66%; }
 }
+/* Phones: no track, the active card's content fades in under the device */
+.run-caption { display: none; }
+.run-live.run-phone .run-track { display: none; }
+.run-live.run-phone .section-head { padding-top: 24px; margin-bottom: 0; }
+.run-live.run-phone .section-head .eyebrow { display: none; }
+.run-live.run-phone .section-head p { font-size: 14px; }
+.run-live.run-phone .section-head h2 { margin-bottom: 6px; }
+.run-live.run-phone .run-caption {
+  display: block; position: absolute; left: 24px; right: 24px; z-index: 3;
+  transform: translateY(0);
+}
+.run-caption .icon-badge { display: none; }
+.run-caption h3 { margin: 0 0 6px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.run-caption p { margin: 0; color: var(--dim); font-size: 14.5px; line-height: 1.55; }
+.run-caption.in { animation: run-caption-in .35s ease both; }
+@keyframes run-caption-in { from { opacity: 0; transform: translateY(8px); } }

@@ -239,28 +239,44 @@ function start() {
   scene.add(root);
 
   // ---------------------------------------------------------------- scroll
+  // Phones: the device fills the width, so a card behind it could never be read.
+  // The track is hidden there and the active card is shown as a caption below.
+  const caption = document.createElement("div");
+  caption.className = "run-caption";
+  caption.setAttribute("aria-live", "polite");
+  pin.appendChild(caption);
+  let phone = false;
   let viewH = 0, dist = 0, trackW = 0, pinW = 0, last = "", knobTarget = 0, knobAngle = 0, sway = 0, needs = true;
 
   function layout() {
     const top = masthead ? masthead.offsetHeight : 0;
     viewH = scroller.clientHeight - top;
     pinW = pin.clientWidth;
+    phone = pinW < 620;
+    section.classList.toggle("run-phone", phone);
     pin.style.top = top + "px";
     pin.style.height = viewH + "px";
     // cards one device-width apart, so the next one goes in as the last comes out
     // as big as fits: the panel is ~half the case, and 320x240 text blurs once it shrinks below 1:1
-    const devW = Math.min(pinW * (pinW < 620 ? 0.98 : 0.64), viewH * 0.56 / 0.6, 900);
+    const head = section.querySelector(".section-head");
+    const devW = phone // phones: leave ~140px under the case for the caption
+      ? Math.max(180, Math.min(pinW * 0.98, (viewH - head.offsetTop - head.offsetHeight - 150) / 0.6))
+      : Math.min(pinW * 0.64, viewH * 0.56 / 0.6, 900);
     glCanvas.style.width = devW + "px";
     glCanvas.style.height = devW * 0.6 + "px";
     track.style.setProperty("--gap", Math.max(24, devW - cards[0].offsetWidth * 0.6) + "px");
     trackW = track.scrollWidth;
-    dist = pinW + trackW;
+    dist = phone ? viewH * 0.6 * cards.length : pinW + trackW;
     section.style.height = viewH + dist * 1.1 + viewH * 0.9 + "px"; // boot + travel + a little dwell
     renderer.setSize(devW, devW * 0.6, false);
     camera.aspect = 1 / 0.6;
     // fit the case width with some room for the sway
     camera.position.set(0, 0, (0.101 * 0.6) / Math.tan(THREE.MathUtils.degToRad(13)) / camera.aspect);
     camera.updateProjectionMatrix();
+    if (phone) { // stack: heading, device, caption
+      glCanvas.style.top = head.offsetTop + head.offsetHeight + devW * 0.3 + 8 + "px";
+    } else glCanvas.style.top = "";
+    caption.style.top = glCanvas.offsetTop + devW * 0.3 + 12 + "px"; // just under the case
     needs = true;
   }
 
@@ -275,13 +291,18 @@ function start() {
     // the last card whose leading edge has crossed the device's centre line
     const centre = pinW / 2;
     let active = -1;
-    cards.forEach((c, i) => { if (x + c.offsetLeft <= centre) active = i; });
+    if (phone) active = travel > 0 ? Math.min(cards.length - 1, Math.floor(travel / dist * cards.length)) : -1;
+    else cards.forEach((c, i) => { if (x + c.offsetLeft <= centre) active = i; });
     const now = active < 0 ? "boot" + Math.round(bootP * 60) : ORDER[active];
     if (now !== last) {
       if (active < 0) drawBoot(bootP); else drawScreen(now);
       knobTarget = -Math.PI / 5 * Math.max(0, active); // one detent per screen
       cards.forEach((c, i) => c.classList.toggle("is-behind", i === active));
       tex.needsUpdate = true;
+      if (phone) {
+        caption.innerHTML = active < 0 ? "" : cards[active].innerHTML;
+        caption.classList.remove("in"); void caption.offsetWidth; caption.classList.add("in");
+      }
       last = now;
       needs = true;
     }
