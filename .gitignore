@@ -11,3 +11,8 @@ Thumbs.db
 
 # Cloudflare Wrangler local build cache / dev state - not source, regenerated on build
 web/.wrangler
+
+# Local agent-skill installs (npx skills add) - machine-specific, not project source
+.agents/
+.claude/
+skills-lock.json
