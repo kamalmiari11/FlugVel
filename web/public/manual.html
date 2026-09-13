@@ -46,19 +46,19 @@
       <button class="clear-btn" id="manualSearchClear" type="button" aria-label="Clear search">&times;</button>
       <p class="no-results" id="manualNoResults">No sections match that.</p>
     </div>
-    <a href="#setup">1. First-time setup</a>
-    <a href="#controls">2. Controls</a>
-    <a href="#screens">3. Screens</a>
-    <a href="#console">4. The setup console</a>
-    <a href="#settings">5. On-device Settings</a>
-    <a href="#updates">6. Firmware updates</a>
-    <a href="#reset">7. Factory reset</a>
-    <a href="#troubleshooting">8. Troubleshooting</a>
+    <a href="#setup"><span class="toc-n">01</span>First-time setup</a>
+    <a href="#controls"><span class="toc-n">02</span>Controls</a>
+    <a href="#screens"><span class="toc-n">03</span>Screens</a>
+    <a href="#console"><span class="toc-n">04</span>The setup console</a>
+    <a href="#settings"><span class="toc-n">05</span>On-device Settings</a>
+    <a href="#updates"><span class="toc-n">06</span>Firmware updates</a>
+    <a href="#reset"><span class="toc-n">07</span>Factory reset</a>
+    <a href="#troubleshooting"><span class="toc-n">08</span>Troubleshooting</a>
   </div>
 
   <div class="manual">
-    <h1 style="margin-top:0;">User Manual</h1>
-    <p class="sub" style="margin-bottom:0;">Everything you need to set up and use a FlugVel device. Covers firmware v1.0.13.</p>
+    <h1 class="first">User Manual</h1>
+    <p class="sub manual-intro-sub">Everything you need to set up and use a FlugVel device. Covers firmware v1.0.13.</p>
 
     <div class="manual-section">
       <div class="sec-head"><h2 id="setup">1. First-time setup</h2><span class="caret">&#9662;</span></div>
@@ -67,23 +67,23 @@
 
       <div class="step">
         <div class="step-num">Step 1</div>
-        <p style="margin:6px 0 0;">Scan the QR code on the device's screen with your phone's camera. This joins your phone to the device's own temporary Wi-Fi network — no password typing needed. If you'd rather do it manually, the network name and address (<code>http://192.168.4.1</code>) are printed below the code.</p>
+        <p>Scan the QR code on the device's screen with your phone's camera. This joins your phone to the device's own temporary Wi-Fi network — no password typing needed. If you'd rather do it manually, the network name and address (<code>http://192.168.4.1</code>) are printed below the code.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 2</div>
-        <p style="margin:6px 0 0;">Your phone should automatically open the setup console (or visit <code>http://192.168.4.1</code> yourself). It opens on the <strong>Wi-Fi</strong> tab — pick your home network from the list and enter its password.</p>
+        <p>Your phone should automatically open the setup console (or visit <code>http://192.168.4.1</code> yourself). It opens on the <strong>Wi-Fi</strong> tab — pick your home network from the list and enter its password.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 3</div>
-        <p style="margin:6px 0 0;">Move to the <strong>Location</strong> tab. Tap "Use my current location" to fill it in automatically, or just type your city — FlugVel looks up the exact coordinates for you. Leaving it blank entirely estimates your location from your network instead, which is less precise. This is also where you set your timezone and which compass direction the screen physically faces.</p>
+        <p>Move to the <strong>Location</strong> tab. Tap "Use my current location" to fill it in automatically, or just type your city — FlugVel looks up the exact coordinates for you. Leaving it blank entirely estimates your location from your network instead, which is less precise. This is also where you set your timezone and which compass direction the screen physically faces.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 4 <span class="tag">optional</span></div>
-        <p style="margin:6px 0 0;">While you're here, the <strong>Customise</strong> tab is already available too — you can set your theme, screen order, calendar feeds and every other preference right now instead of later. Nothing stops you from skipping this and coming back to it anytime (see <a href="#console">§4</a>).</p>
+        <p>While you're here, the <strong>Customise</strong> tab is already available too — you can set your theme, screen order, calendar feeds and every other preference right now instead of later. Nothing stops you from skipping this and coming back to it anytime (see <a href="#console">§4</a>).</p>
       </div>
       <div class="step">
         <div class="step-num">Step 5</div>
-        <p style="margin:6px 0 0;">Save. The device joins your Wi-Fi and switches to normal operation. If the Wi-Fi password was wrong, it'll tell you and let you try again.</p>
+        <p>Save. The device joins your Wi-Fi and switches to normal operation. If the Wi-Fi password was wrong, it'll tell you and let you try again.</p>
       </div>
 
       <div class="callout">All of this only happens once. FlugVel remembers your Wi-Fi and settings across restarts and power cuts.</div>
@@ -175,49 +175,49 @@
       <h3>Connect your notes (Notion)</h3>
       <div class="step">
         <div class="step-num">Step 1</div>
-        <p style="margin:6px 0 0;">Go to <code>notion.so/my-integrations</code> (sign in with the Notion account that owns the page you want to show), and click <strong>New integration</strong>.</p>
+        <p>Go to <code>notion.so/my-integrations</code> (sign in with the Notion account that owns the page you want to show), and click <strong>New integration</strong>.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 2</div>
-        <p style="margin:6px 0 0;">Give it any name (e.g. "FlugVel") and pick your workspace. Under <strong>Capabilities</strong>, turn on both <strong>Read content</strong> and <strong>Update content</strong> — Update is what lets you tick a box on the device itself; with only Read, the list still shows but ticking a box won't stick. Save.</p>
+        <p>Give it any name (e.g. "FlugVel") and pick your workspace. Under <strong>Capabilities</strong>, turn on both <strong>Read content</strong> and <strong>Update content</strong> — Update is what lets you tick a box on the device itself; with only Read, the list still shows but ticking a box won't stick. Save.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 3</div>
-        <p style="margin:6px 0 0;">Copy the <strong>Internal Integration Secret</strong> it generates (starts with <code>secret_</code> or <code>ntn_</code>) — you won't be shown it again after leaving the page, so copy it now.</p>
+        <p>Copy the <strong>Internal Integration Secret</strong> it generates (starts with <code>secret_</code> or <code>ntn_</code>) — you won't be shown it again after leaving the page, so copy it now.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 4</div>
-        <p style="margin:6px 0 0;">Open the actual Notion page you want on the device. Click the <strong>&middot;&middot;&middot;</strong> menu in its top-right corner &rsaquo; <strong>Connections</strong> &rsaquo; find your integration and add it. Skipping this step is the #1 cause of "Page not found" below — a token alone can't see any page until it's added here.</p>
+        <p>Open the actual Notion page you want on the device. Click the <strong>&middot;&middot;&middot;</strong> menu in its top-right corner &rsaquo; <strong>Connections</strong> &rsaquo; find your integration and add it. Skipping this step is the #1 cause of "Page not found" below — a token alone can't see any page until it's added here.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 5</div>
-        <p style="margin:6px 0 0;">Back in the setup console's <strong>Customise</strong> tab, open the <strong>Notes</strong> section. Paste the secret into <strong>Integration token</strong>, and paste the page's address (or just its id) into <strong>Page</strong>.</p>
+        <p>Back in the setup console's <strong>Customise</strong> tab, open the <strong>Notes</strong> section. Paste the secret into <strong>Integration token</strong>, and paste the page's address (or just its id) into <strong>Page</strong>.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 6 <span class="tag">optional</span></div>
-        <p style="margin:6px 0 0;">If your page is laid out with day headings ("Monday", "Tuesday", ...), turn on <strong>Group notes by day</strong> — see <a href="#screens">§3</a> for exactly how that's structured and rendered. Save, and the Notes screen fetches on its next cycle.</p>
+        <p>If your page is laid out with day headings ("Monday", "Tuesday", ...), turn on <strong>Group notes by day</strong> — see <a href="#screens">§3</a> for exactly how that's structured and rendered. Save, and the Notes screen fetches on its next cycle.</p>
       </div>
 
       <h3>Connect your events (calendar)</h3>
       <div class="step">
         <div class="step-num">Step 1</div>
-        <p style="margin:6px 0 0;">Find your calendar's private iCal address. In Google Calendar: Settings &rsaquo; pick the calendar under "Settings for my calendars" &rsaquo; <strong>Secret address in iCal format</strong>. In Apple/iCloud Calendar: right-click (or long-press) the calendar &rsaquo; <strong>Share Calendar</strong> &rsaquo; turn on Public Calendar &rsaquo; copy the link. In Outlook.com: Settings &rsaquo; Shared calendars &rsaquo; publish a calendar &rsaquo; copy the ICS link.</p>
+        <p>Find your calendar's private iCal address. In Google Calendar: Settings &rsaquo; pick the calendar under "Settings for my calendars" &rsaquo; <strong>Secret address in iCal format</strong>. In Apple/iCloud Calendar: right-click (or long-press) the calendar &rsaquo; <strong>Share Calendar</strong> &rsaquo; turn on Public Calendar &rsaquo; copy the link. In Outlook.com: Settings &rsaquo; Shared calendars &rsaquo; publish a calendar &rsaquo; copy the ICS link.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 2</div>
-        <p style="margin:6px 0 0;">Copy that address. If it starts with <code>webcal://</code>, swap that prefix for <code>https://</code> — either works, but https:// is the safer bet across calendar apps.</p>
+        <p>Copy that address. If it starts with <code>webcal://</code>, swap that prefix for <code>https://</code> — either works, but https:// is the safer bet across calendar apps.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 3</div>
-        <p style="margin:6px 0 0;">In the setup console's <strong>Customise</strong> tab, open the <strong>Calendar</strong> section, and paste it into one of the four feed slots — the <strong>Label</strong> field next to it is just a short name for your own reference, it isn't shown on the device.</p>
+        <p>In the setup console's <strong>Customise</strong> tab, open the <strong>Calendar</strong> section, and paste it into one of the four feed slots — the <strong>Label</strong> field next to it is just a short name for your own reference, it isn't shown on the device.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 4 <span class="tag">optional</span></div>
-        <p style="margin:6px 0 0;">Repeat for up to three more calendars — work, a partner's, a shared family one — they merge into a single agenda, with "Merge duplicates" collapsing anything that appears on more than one of them into a single row.</p>
+        <p>Repeat for up to three more calendars — work, a partner's, a shared family one — they merge into a single agenda, with "Merge duplicates" collapsing anything that appears on more than one of them into a single row.</p>
       </div>
       <div class="step">
         <div class="step-num">Step 5</div>
-        <p style="margin:6px 0 0;">Set <strong>Look ahead</strong> (how far into the future events are listed) and <strong>Keep at most</strong> (a cap across every feed combined) to taste, and save.</p>
+        <p>Set <strong>Look ahead</strong> (how far into the future events are listed) and <strong>Keep at most</strong> (a cap across every feed combined) to taste, and save.</p>
       </div>
       </div>
     </div>
@@ -255,7 +255,7 @@
       <div class="sec-body">
       <p>To wipe saved Wi-Fi credentials and settings and start over:</p>
       <div class="step">
-        <p style="margin:0;">Press and hold <strong>both</strong> buttons (the knob's click button and the other button) together for <strong>15 seconds</strong>. The screen will show "Factory Reset..." and the device will restart into first-time setup mode. The same thing is available as a menu item under Settings → Factory Reset if you'd rather not hold both buttons.</p>
+        <p>Press and hold <strong>both</strong> buttons (the knob's click button and the other button) together for <strong>15 seconds</strong>. The screen will show "Factory Reset..." and the device will restart into first-time setup mode. The same thing is available as a menu item under Settings → Factory Reset if you'd rather not hold both buttons.</p>
       </div>
       <div class="callout danger">This clears everything — Wi-Fi password, location, theme, screen order, calendar feeds and every other preference. You'll need to go through first-time setup again afterward.</div>
       </div>
