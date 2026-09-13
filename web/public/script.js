@@ -171,6 +171,32 @@
 })();
 
 
+// Fade-and-rise entrance for section heads and cards as they scroll into
+// view (drawing attention to each new section in turn, the way the device
+// itself brings one screen forward at a time). Opt-in via .reveal-ready so
+// no-JS and prefers-reduced-motion visitors just see the finished layout -
+// nothing is ever hidden waiting on JS that might not run.
+(function () {
+  var targets = document.querySelectorAll("[data-reveal]");
+  if (!targets.length) return;
+  if (!window.IntersectionObserver) return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  document.documentElement.classList.add("reveal-ready");
+  var io = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("in");
+          io.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
+  );
+  targets.forEach(function (el) { io.observe(el); });
+})();
+
 // Manual §3's Notion template has a "Copy" button next to it
 // (data-copy-target points at the <pre> holding the plain-text template) -
 // copies its exact text so it pastes into Notion as real blocks rather
