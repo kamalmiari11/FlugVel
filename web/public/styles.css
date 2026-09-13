@@ -143,7 +143,23 @@ label, .n, .caption, .step-num, th { font-family: var(--mono); }
   max-width: 640px;
   margin: 0 auto;
   text-align: center;
+  position: relative;
 }
+/* Faint technical dot-grid behind the hero, in the same ink used everywhere
+   else for hairlines - reads as "measured instrument," not decoration. */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: -20px -24px;
+  background-image: radial-gradient(var(--line-strong) 1px, transparent 1px);
+  background-size: 22px 22px;
+  opacity: .25;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 40%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+.hero > * { position: relative; z-index: 1; }
 .hero .cta-row { justify-content: center; }
 
 /* Side-by-side layout: copy on the left, the device clip on the right.
@@ -406,6 +422,22 @@ h2 { font-size: clamp(24px, 3vw + 12px, 30px); margin: 0 0 12px; font-weight: 80
 @media (max-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 580px) { .grid { grid-template-columns: 1fr; } }
 
+/* Bento: 6-col track, mixed cell widths so the 7 features don't read as one
+   uniform repeated card - Plane tracker (the headline feature) gets a
+   tinted, wider tile; the rest step down in size and weight to match. */
+.bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px; }
+.feature-lg { grid-column: span 4; }
+.feature-md { grid-column: span 2; }
+.feature-sm { grid-column: span 2; }
+.feature-wide { grid-column: span 3; }
+@media (max-width: 900px) {
+  .bento { grid-template-columns: repeat(2, 1fr); }
+  .feature-lg, .feature-md, .feature-sm, .feature-wide { grid-column: span 1; }
+}
+@media (max-width: 560px) {
+  .bento { grid-template-columns: 1fr; }
+}
+
 .feature {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -415,7 +447,23 @@ h2 { font-size: clamp(24px, 3vw + 12px, 30px); margin: 0 0 12px; font-weight: 80
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 .feature:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: rgba(192,90,30,.35); }
-.feature:active, .step-card:active, .spec:active { transform: scale(.98); box-shadow: var(--shadow-sm); }
+.feature:active, .spec:active { transform: scale(.98); box-shadow: var(--shadow-sm); }
+.feature-lg {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: linear-gradient(160deg, rgba(192,90,30,.10), rgba(192,90,30,.04));
+  border-color: rgba(192,90,30,.25);
+}
+.feature-lg .icon-badge { width: 52px; height: 52px; border-radius: 10px; }
+.feature-lg .icon { width: 26px; height: 26px; }
+.feature-lg h3 { font-size: 20px; }
+.feature-lg p { font-size: 15px; max-width: 42ch; }
+.feature-tint {
+  background:
+    repeating-linear-gradient(135deg, rgba(192,90,30,.05) 0 2px, transparent 2px 14px),
+    var(--surface);
+}
 .feature .icon-badge {
   width: 42px; height: 42px;
   display: flex; align-items: center; justify-content: center;
@@ -426,29 +474,6 @@ h2 { font-size: clamp(24px, 3vw + 12px, 30px); margin: 0 0 12px; font-weight: 80
 }
 .feature h3 { margin: 0 0 8px; font-size: 16.5px; font-weight: 700; letter-spacing: -0.01em; }
 .feature p { margin: 0; color: var(--dim); font-size: 14.5px; line-height: 1.6; }
-
-/* Setup-console step cards: numbered, a touch more technical than .feature */
-.step-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 22px 22px 24px;
-  box-shadow: var(--shadow-sm);
-  transition: transform .12s ease, box-shadow .12s ease;
-}
-.step-card .step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.step-card .step-no {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--accent-ink);
-  background: rgba(192, 90, 30, .10);
-  border-radius: 999px;
-  width: 26px; height: 26px;
-  display: flex; align-items: center; justify-content: center;
-  flex: none;
-}
-.step-card h3 { margin: 0; font-size: 15px; font-weight: 700; }
-.step-card p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.6; }
 .badge {
   font-size: 10.5px; letter-spacing: .5px; padding: 2px 8px; text-transform: uppercase;
   border-radius: 999px; border: 1px solid var(--line-strong); color: var(--dim); font-weight: 500;
@@ -457,22 +482,77 @@ h2 { font-size: clamp(24px, 3vw + 12px, 30px); margin: 0 0 12px; font-weight: 80
 .tag { font-size: 10.5px; letter-spacing: .5px; color: var(--dim); text-transform: uppercase; font-weight: 500; }
 .tag.rec { color: var(--accent-ink); }
 
-/* ============== Spec strip ============== */
-.specs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-@media (max-width: 700px) { .specs { grid-template-columns: 1fr 1fr; } }
-.spec {
+/* ============== Setup timeline ============== */
+/* A single connected line down the page instead of three identical cards -
+   breaks the repeated-grid rhythm the bento section above already used. */
+.timeline { position: relative; max-width: 560px; padding-left: 40px; }
+.timeline::before {
+  content: ""; position: absolute; left: 13px; top: 4px; bottom: 4px; width: 2px;
+  background: var(--line-strong);
+}
+.timeline-item { position: relative; padding-bottom: 34px; }
+.timeline-item:last-child { padding-bottom: 0; }
+.timeline-item .dot {
+  position: absolute; left: -40px; top: -2px;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--line-strong);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--dim);
+  z-index: 1;
+}
+.timeline-item .step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.timeline-item h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.timeline-item p { margin: 0; color: var(--dim); font-size: 14.5px; line-height: 1.6; max-width: 46ch; }
+
+/* ============== Spec plate ============== */
+/* One engraved panel instead of four boxed cards - reads like a real
+   hardware data plate, and gives this section its own shape too. */
+.plate {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 18px 18px;
   box-shadow: var(--shadow-sm);
-  transition: transform .12s ease, box-shadow .12s ease;
+  overflow: hidden;
 }
+.plate-label {
+  position: absolute; top: 10px; left: 18px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--line-strong);
+}
+.plate-row { display: flex; }
+.plate .spec {
+  flex: 1;
+  padding: 34px 20px 18px;
+  border-right: 1px solid var(--line);
+}
+.plate .spec:last-child { border-right: none; }
 .spec .num { font-family: var(--sans); color: var(--ink); font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
 .spec .label { color: var(--dim); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }
+@media (max-width: 700px) {
+  .plate-row { flex-wrap: wrap; }
+  .plate .spec { flex: 1 1 50%; border-bottom: 1px solid var(--line); }
+  .plate .spec:nth-child(2n) { border-right: none; }
+  .plate .spec:nth-last-child(-n+2) { border-bottom: none; }
+}
 
 /* ============== Closing CTA ============== */
-.closing { text-align: center; }
+.closing { text-align: center; position: relative; overflow: hidden; }
+.closing::before {
+  content: "[ FLUGVEL ]";
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--mono);
+  font-size: clamp(64px, 14vw, 160px);
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--ink);
+  opacity: .035;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.closing .wrap { position: relative; }
 .closing .section-head { margin-left: auto; margin-right: auto; }
 .closing .cta-row { justify-content: center; }
 
@@ -538,6 +618,11 @@ input:focus, select:focus, textarea:focus {
 
 /* ============== Manual ============== */
 .manual-layout { display: grid; grid-template-columns: 220px 1fr; gap: 48px; padding: 48px 0 96px; }
+@media (max-width: 480px) {
+  /* Reference content (tables, numbered steps) needs the width more than
+     the marketing page does, so give it back a bit of the side gutter. */
+  .manual-layout.wrap { padding-left: 16px; padding-right: 16px; }
+}
 .toc { position: sticky; top: 78px; align-self: start; border-left: 2px solid var(--line); }
 @media (max-width: 900px) {
   .manual-layout { grid-template-columns: 1fr; }
@@ -554,7 +639,10 @@ input:focus, select:focus, textarea:focus {
   transition: color .12s ease, border-color .12s ease;
 }
 .toc a:hover, .toc a.active { color: var(--accent-ink); border-left-color: var(--accent); text-decoration: none; }
-.manual h1 { font-size: 34px; letter-spacing: -0.02em; }
+.toc-n { color: var(--line-strong); margin-right: 8px; }
+.toc a:hover .toc-n, .toc a.active .toc-n { color: var(--accent); }
+.manual h1.first { margin-top: 0; font-size: clamp(28px, 4vw + 12px, 34px); letter-spacing: -0.02em; }
+.manual-intro-sub { margin-bottom: 0; }
 /* The manual/privacy intro paragraph reuses .sub (built for the centered
    hero), whose max-width:46ch + margin:0 auto centers it as a narrow
    column instead of flowing full-width under the h1. Override for any
@@ -572,7 +660,13 @@ section.manual-intro { padding-bottom: 0; }
 }
 .manual p, .manual li { color: var(--ink); font-size: 15px; line-height: 1.65; }
 .manual ol, .manual ul { padding-left: 22px; }
+/* Numbered steps: a left-hand chip carries the number (the same visual
+   language as the timeline dots and nav-tab numerals on the landing page),
+   so a page of steps reads as steps, not just bordered paragraphs. */
 .step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
@@ -581,9 +675,25 @@ section.manual-intro { padding-bottom: 0; }
   margin: 14px 0;
   box-shadow: var(--shadow-sm);
 }
+.step p { margin: 0; }
 .step .step-num {
-  font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent-ink); font-weight: 600;
-  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 600; letter-spacing: .5px;
+  color: var(--accent-ink);
+  background: rgba(192, 90, 30, .10);
+  border-radius: 999px;
+  min-width: 26px; height: 26px;
+  padding: 0 8px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.step:has(.step-num) { padding-block: 12px; }
+@media (max-width: 640px) {
+  /* Side-by-side chip + paragraph squeezes the text into a narrow column
+     on phones (worse when the chip's text wraps, e.g. "Step 4 optional") -
+     stack instead so the paragraph gets the full content width. */
+  .step { flex-direction: column; gap: 8px; padding: 14px 16px; }
+  .step .step-num { min-width: 0; }
 }
 code, kbd {
   font-family: var(--mono);
@@ -869,3 +979,37 @@ tr:last-child td { border-bottom: none; }
 .modal fieldset { background: transparent; border: 0; padding: 0; margin: 0; box-shadow: none; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .modal-actions .act { width: auto; margin-top: 0; }
+
+/* ============== Screens run (screens-run.js) ============== */
+/* Plain bento until the script adds .run-live (WebGL + motion allowed).
+   Live: .run-pin sticks under the masthead for the whole section, the 3D
+   device sits in its centre and the card track slides right-to-left behind
+   it. Section height, pin height and --gap are set from JS. */
+.run-device { display: none; }
+.run.run-live { padding: 0; }
+.run-live .run-pin { position: sticky; overflow: hidden; }
+.run-live .section-head { padding-top: 48px; position: relative; z-index: 3; }
+.run-live [data-reveal] { opacity: 1; transform: none; }
+.run-live .run-track {
+  position: absolute; left: 0; top: 58%;
+  display: flex; gap: var(--gap, 240px); align-items: stretch;
+  max-width: none; margin: 0; padding: 0; z-index: 1;
+  will-change: transform;
+}
+.run-live .run-track .feature {
+  flex: none; width: 300px; grid-column: auto;
+  transition: opacity .35s ease, filter .35s ease;
+}
+.run-live .run-track .feature.is-behind { filter: saturate(.6); opacity: .55; }
+.run-live .run-device {
+  display: block; position: absolute; left: 50%; top: 58%; z-index: 2;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 30px 40px rgba(29, 31, 26, .35));
+}
+@media (max-width: 620px) {
+  .run-live .section-head { padding-top: 28px; }
+  .run-live .run-track .feature { width: 200px; padding: 18px; }
+  .run-live .run-track .feature p { font-size: 13px; }
+  .run-live .run-device, .run-live .run-track { top: 66%; }
+}
