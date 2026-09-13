@@ -564,3 +564,35 @@
       });
   });
 })();
+
+// Changelog: the markup lists releases as of the last site deploy. If the
+// firmware manifest on GitHub names a newer version, it becomes the lead
+// entry and the old lead joins the top of the list. Quietly does nothing
+// if GitHub can't be reached.
+(function () {
+  var box = document.getElementById("changelog");
+  if (!box || !window.fetch) return;
+  var lead = box.querySelector(".release-lead");
+  var shown = lead.querySelector(".release-ver").textContent.replace("v", "");
+  var newer = function (a, b) {
+    a = a.split(".").map(Number); b = b.split(".").map(Number);
+    for (var i = 0; i < 3; i++) if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0);
+    return false;
+  };
+  fetch("https://raw.githubusercontent.com/kamalmiari11/FlugVel/main/update_manifest.json", { cache: "no-store" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (m) {
+      if (!m || !m.version || !newer(m.version, shown)) return;
+      var li = document.createElement("li");
+      li.innerHTML = '<span class="release-ver"></span><p></p>';
+      li.firstChild.textContent = "v" + shown;
+      li.lastChild.textContent = lead.querySelector("p").textContent;
+      var list = box.querySelector(".release-list");
+      list.insertBefore(li, list.firstChild);
+      if (list.children.length > 5) list.removeChild(list.lastElementChild);
+      lead.querySelector(".release-ver").textContent = "v" + m.version;
+      lead.querySelector("p").textContent = m.notes || "";
+      lead.querySelector("time").hidden = true; // the manifest carries no date
+    })
+    .catch(function () {});
+})();

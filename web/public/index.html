@@ -53,7 +53,7 @@
     <div class="wrap">
       <div class="hero hero-split">
         <div class="hero-copy">
-          <div class="eyebrow">Personal build <b>·</b> One knob <b>·</b> v1.0.13</div>
+          <div class="eyebrow">Personal build <b>·</b> One knob <b>·</b> v1.0.23</div>
           <h1>A little box that watches the sky so I don't have to.</h1>
           <p class="sub">Flights, weather, your calendar, your notes, a focus timer, two working games. All on one knob. No app. You're looking at it right now, actually — this whole page is running on its screen.</p>
           <div class="cta-row">
@@ -167,17 +167,24 @@
     <section>
       <div class="wrap">
         <div class="section-head" data-reveal>
-          <h2>Four looks, your call.</h2>
-          <p>Four color themes, 12/24-hour time, metric or imperial, and yes — left-handed mode.</p>
+          <h2>Still being worked on.</h2>
+          <p>New firmware installs from the device's Settings. Here's what changed lately.</p>
         </div>
-        <div class="plate" data-reveal>
-          <span class="plate-label">Spec plate</span>
-          <div class="plate-row">
-            <div class="spec"><div class="num">1</div><div class="label">Knob (that's it)</div></div>
-            <div class="spec"><div class="num">240×320</div><div class="label">TFT display, 40MHz SPI</div></div>
-            <div class="spec"><div class="num">4</div><div class="label">Color themes</div></div>
-            <div class="spec"><div class="num">v1.0.7</div><div class="label">Current firmware</div></div>
-          </div>
+        <!-- Newest first. script.js swaps the lead entry for update_manifest.json
+             on GitHub when a newer release is out, so this never goes stale. -->
+        <div class="changelog" id="changelog" data-reveal>
+          <article class="release-lead">
+            <div class="release-ver">v1.0.23</div>
+            <time datetime="2026-09-13">13 Sep 2026</time>
+            <p>Boot, calendar and notes no longer freeze the device on a slow network. The plane screen's loading indicator no longer erases the border.</p>
+          </article>
+          <ol class="release-list">
+            <li><span class="release-ver">v1.0.22</span><p>The plane screen stops refetching every time you turn back to it.</p></li>
+            <li><span class="release-ver">v1.0.20</span><p>The calendar shows repeating events: weekly, monthly and yearly.</p></li>
+            <li><span class="release-ver">v1.0.18</span><p>Air Traffic is a real game now. Land planes only once they reach the approach zone.</p></li>
+            <li><span class="release-ver">v1.0.15</span><p>Hold the knob to open a screen switcher.</p></li>
+            <li><span class="release-ver">v1.0.14</span><p>Simon Says and Air Traffic join the games.</p></li>
+          </ol>
         </div>
       </div>
     </section>
