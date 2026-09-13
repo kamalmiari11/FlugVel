@@ -991,7 +991,7 @@ tr:last-child td { border-bottom: none; }
 .run-live .section-head { padding-top: 48px; position: relative; z-index: 3; }
 .run-live [data-reveal] { opacity: 1; transform: none; }
 .run-live .run-track {
-  position: absolute; left: 0; top: 58%;
+  position: absolute; left: 0; top: 62%;
   display: flex; gap: var(--gap, 240px); align-items: stretch;
   max-width: none; margin: 0; padding: 0; z-index: 1;
   will-change: transform;
@@ -1002,7 +1002,7 @@ tr:last-child td { border-bottom: none; }
 }
 .run-live .run-track .feature.is-behind { filter: saturate(.6); opacity: .55; }
 .run-live .run-device {
-  display: block; position: absolute; left: 50%; top: 58%; z-index: 2;
+  display: block; position: absolute; left: 50%; top: 62%; z-index: 2;
   transform: translate(-50%, -50%);
   pointer-events: none;
   filter: drop-shadow(0 30px 40px rgba(29, 31, 26, .35));

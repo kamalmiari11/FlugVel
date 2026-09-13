@@ -248,17 +248,18 @@ function start() {
     pin.style.top = top + "px";
     pin.style.height = viewH + "px";
     // cards one device-width apart, so the next one goes in as the last comes out
-    const devW = Math.min(pinW * (pinW < 620 ? 0.92 : 0.62), 560);
+    // as big as fits: the panel is ~half the case, and 320x240 text blurs once it shrinks below 1:1
+    const devW = Math.min(pinW * (pinW < 620 ? 0.98 : 0.64), viewH * 0.56 / 0.6, 900);
     glCanvas.style.width = devW + "px";
-    glCanvas.style.height = devW * 0.72 + "px";
+    glCanvas.style.height = devW * 0.6 + "px";
     track.style.setProperty("--gap", Math.max(24, devW - cards[0].offsetWidth * 0.6) + "px");
     trackW = track.scrollWidth;
     dist = pinW + trackW;
     section.style.height = viewH + dist * 1.1 + viewH * 0.9 + "px"; // boot + travel + a little dwell
-    renderer.setSize(devW, devW * 0.72, false);
-    camera.aspect = 1 / 0.72;
+    renderer.setSize(devW, devW * 0.6, false);
+    camera.aspect = 1 / 0.6;
     // fit the case width with some room for the sway
-    camera.position.set(0, 0, (0.101 * 0.64) / Math.tan(THREE.MathUtils.degToRad(13)) / camera.aspect);
+    camera.position.set(0, 0, (0.101 * 0.6) / Math.tan(THREE.MathUtils.degToRad(13)) / camera.aspect);
     camera.updateProjectionMatrix();
     needs = true;
   }
@@ -285,11 +286,11 @@ function start() {
       needs = true;
     }
 
-    const swayTarget = (bootP - 0.5) * 0.2 + (Math.min(travel, dist) / dist - 0.5) * -0.5;
+    const swayTarget = (bootP - 0.5) * 0.08 + (Math.min(travel, dist) / dist - 0.5) * -0.22; // small, so the panel stays square-on
     sway += (swayTarget - sway) * 0.12;
     knobAngle += (knobTarget - knobAngle) * 0.18;
     if (needs || Math.abs(swayTarget - sway) > 1e-4 || Math.abs(knobTarget - knobAngle) > 1e-4) {
-      root.rotation.set(0.14 + sway * 0.25, sway, 0);
+      root.rotation.set(0.05 + sway * 0.2, sway, 0);
       knob.rotation.z = knobAngle;
       renderer.render(scene, camera);
       needs = false;
