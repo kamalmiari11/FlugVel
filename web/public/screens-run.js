@@ -284,9 +284,22 @@ function start() {
     // fit the case width with some room for the sway
     camera.position.set(0, 0, (0.101 * 0.6) / Math.tan(THREE.MathUtils.degToRad(13)) / camera.aspect);
     camera.updateProjectionMatrix();
-    if (phone) { // stack: heading, device, caption
-      glCanvas.style.top = head.offsetTop + head.offsetHeight + devW * 0.3 + 8 + "px";
-    } else glCanvas.style.top = "";
+    // The device is meant to sit centered around 62% down the pinned area
+    // (CSS default), with cards sliding past it - but that's a guess with
+    // no relationship to how tall the heading actually rendered. On a
+    // short/modest-height viewport, a wrapped heading + paragraph can
+    // reach past that 62% mark, and the device (which was really just
+    // "let CSS center it") ends up sitting on top of the text instead of
+    // below it. Clamping to whichever is lower keeps the centered look
+    // when there's room, and guarantees clearance under the heading when
+    // there isn't - same reasoning phone mode already applied below it.
+    const headClearance = head.offsetTop + head.offsetHeight + devW * 0.3 + (phone ? 8 : 24);
+    const devTop = phone ? headClearance : Math.max(viewH * 0.62, headClearance);
+    glCanvas.style.top = devTop + "px";
+    // Cards slide past the device at the same vertical band - keep them
+    // pinned to wherever the device actually ended up, not the CSS
+    // default, or the two drift apart whenever the clamp above kicks in.
+    if (!phone) track.style.top = devTop + "px";
     caption.style.top = glCanvas.offsetTop + devW * 0.3 + 12 + "px"; // just under the case
     needs = true;
   }
