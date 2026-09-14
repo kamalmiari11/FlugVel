@@ -30,10 +30,12 @@ export async function onRequestPost(context) {
     return json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  // Honeypot - same "company" convention as the subscribe form. A filled-in
-  // value means it wasn't a person; pretend success so the bot gets no
-  // signal to adapt on.
-  if (body && typeof body.company === "string" && body.company.trim() !== "") {
+  // Honeypot - same bot-defense idea as subscribe.js's "company" field, but
+  // deliberately NOT named after a real autofill category this time (see
+  // support.html's comment on the input) - a browser auto-filling this
+  // from a saved address profile was silently turning real submissions
+  // into ones the server treats as bot traffic.
+  if (body && typeof body.hp_note === "string" && body.hp_note.trim() !== "") {
     return json({ ok: true });
   }
 

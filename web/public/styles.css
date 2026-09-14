@@ -891,6 +891,27 @@ tr:last-child td { border-bottom: none; }
 /* ============== Support page ============== */
 .support-fieldset { max-width: 480px; }
 .support-fieldset button.act { width: 100%; margin-top: 18px; }
+.support-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--accent);
+  background: rgba(192, 90, 30, .08);
+  border-radius: var(--r);
+  padding: 16px 18px;
+  margin-bottom: 4px;
+}
+.support-confirm-mark {
+  flex: none;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+}
+.support-confirm p { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.5; }
+.support-confirm strong { color: var(--accent-ink); }
 .faq-list { max-width: 720px; }
 .faq-item {
   border-bottom: 1px solid var(--line);

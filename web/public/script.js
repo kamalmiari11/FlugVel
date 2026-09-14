@@ -574,9 +574,9 @@
   var nameInput = document.getElementById("supportName");
   var emailInput = document.getElementById("supportEmail");
   var messageInput = document.getElementById("supportMessage");
-  var honeypot = document.getElementById("supportCompany");
+  var honeypot = document.getElementById("supportHp");
   var errorBox = document.getElementById("supportError");
-  var status = document.getElementById("supportStatus");
+  var confirmBox = document.getElementById("supportConfirm");
   var button = document.getElementById("supportSubmit");
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -588,8 +588,6 @@
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     setError("");
-    status.textContent = "";
-    status.className = "signup-status";
 
     var email = emailInput.value.trim();
     var message = messageInput.value.trim();
@@ -615,7 +613,7 @@
         name: nameInput ? nameInput.value.trim() : "",
         email: email,
         message: message,
-        company: honeypot ? honeypot.value : "",
+        hp_note: honeypot ? honeypot.value : "",
       }),
     })
       .then(function (res) {
@@ -626,9 +624,11 @@
       })
       .then(function (result) {
         if (result.ok) {
-          status.textContent = "Sent — you'll hear back by email.";
-          status.className = "signup-status success";
-          form.reset();
+          // Swap the whole form out for an unmissable confirmation, rather
+          // than a small status line under the button that's easy to miss
+          // (or to mistake for not having worked at all) - see support.html.
+          form.hidden = true;
+          confirmBox.hidden = false;
         } else {
           setError((result.data && result.data.error) || "Something went wrong – try again in a bit.");
         }

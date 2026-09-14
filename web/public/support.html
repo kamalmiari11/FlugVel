@@ -93,6 +93,10 @@
         <fieldset class="support-fieldset">
           <legend>Message</legend>
           <div class="form-error" id="supportError"></div>
+          <div class="support-confirm" id="supportConfirm" role="status" hidden>
+            <span class="support-confirm-mark" aria-hidden="true">&#10003;</span>
+            <p><strong>Message sent.</strong> Check your inbox for a confirmation — a real reply will follow separately.</p>
+          </div>
           <form id="supportForm">
             <label for="supportName">Name <span class="badge">Optional</span></label>
             <input type="text" id="supportName" name="name" maxlength="100" autocomplete="name">
@@ -101,11 +105,19 @@
             <label for="supportMessage">Message <span class="badge req">Required</span></label>
             <textarea id="supportMessage" name="message" rows="6" maxlength="4000" required></textarea>
             <!-- Honeypot: real visitors never see this, see index.html's
-                 signup form for the same pattern and why. -->
-            <input type="text" name="company" id="supportCompany" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
+                 signup form for the same pattern and why. Deliberately NOT
+                 named/typed like a real autofill category (company, url,
+                 website, ...) - a field that off-screen positioning hides
+                 from a human can still get silently filled in by a
+                 browser's saved-address autofill if its name matches one
+                 of those categories, which was making real submissions
+                 from this form look like bot traffic to the server (it
+                 correctly returns success either way, so nothing about a
+                 hijacked submission looked broken from the visitor's side
+                 - it just silently never sent anything). -->
+            <input type="text" name="hp_note" id="supportHp" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
             <button type="submit" class="act" id="supportSubmit">Send message</button>
           </form>
-          <p class="signup-status" id="supportStatus" role="status" aria-live="polite"></p>
         </fieldset>
       </div>
     </section>
