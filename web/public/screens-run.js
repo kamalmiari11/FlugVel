@@ -331,7 +331,14 @@ function start() {
   }
 
   window.addEventListener("resize", layout);
-  document.fonts.ready.then(() => { last = ""; }); // redraw once Plex Mono is in
+  // Also re-run layout(), not just redraw the texture: on phones, the
+  // canvas's own top offset is measured from the section-head's height
+  // (head.offsetHeight above), and the fallback font it's first measured
+  // with wraps that paragraph differently (usually fewer/shorter lines)
+  // than Plex Mono does once it's actually in - so the canvas was left
+  // pinned at a stale, too-high position and sat on top of the real
+  // (taller) re-flowed text instead of below it.
+  document.fonts.ready.then(() => { last = ""; layout(); });
   layout();
   requestAnimationFrame(frame);
 }
