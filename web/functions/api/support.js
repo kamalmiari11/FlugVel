@@ -1,0 +1,82 @@
+import { json } from "../_lib/auth.js";
+
+// A deliberately loose but real email check - see subscribe.js for why.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Where a submitted support message actually goes. Not a secret, so it's a
+// plain constant rather than an env var - same reasoning main.cpp's own
+// CHECKIN_URL/DEVICE_API_KEY constants use for single-deployment specifics
+// that don't need to change without a code change anyway.
+const SUPPORT_TO = "kml@flugvel.com";
+
+// POST /api/support  { name?: string, email: string, message: string, company?: string }
+// Public endpoint (no login needed) for the Support page's contact form.
+// Unlike /api/subscribe, this never touches D1 - the destination inbox IS
+// the record; there's nothing here worth keeping a second copy of.
+//
+// Skipped: server-side rate limiting (subscribe.js's IP+D1 throttle). The
+// honeypot below covers the common bot case, and a private inbox getting
+// occasionally spammed is a much smaller problem than a public mailing
+// list's sending quota getting burned - add a throttle here if that
+// changes.
+export async function onRequestPost(context) {
+  const { request, env } = context;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  // Honeypot - same "company" convention as the subscribe form. A filled-in
+  // value means it wasn't a person; pretend success so the bot gets no
+  // signal to adapt on.
+  if (body && typeof body.company === "string" && body.company.trim() !== "") {
+    return json({ ok: true });
+  }
+
+  const name = ((body && body.name) || "").trim().slice(0, 100);
+  const email = ((body && body.email) || "").trim().toLowerCase();
+  const message = ((body && body.message) || "").trim();
+
+  if (!email || email.length > 320 || !EMAIL_RE.test(email)) {
+    return json({ error: "Enter a valid email address" }, { status: 400 });
+  }
+  if (!message || message.length > 4000) {
+    return json({ error: message ? "Message is too long" : "Enter a message" }, { status: 400 });
+  }
+
+  if (!env.RESEND_API_KEY) {
+    return json({ error: "Server not configured for sending" }, { status: 500 });
+  }
+
+  const who = name ? `${name} <${email}>` : email;
+  const text = `From: ${who}\n\n${message}`;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.RESEND_FROM || "FlugVel <onboarding@resend.dev>",
+        to: SUPPORT_TO,
+        // So replying in the inbox goes straight back to whoever wrote in,
+        // not to the FlugVel sending address.
+        reply_to: email,
+        subject: `Support message from ${name || email}`,
+        text,
+      }),
+    });
+    if (!res.ok) {
+      return json({ error: "Couldn't send right now - try again in a bit" }, { status: 502 });
+    }
+  } catch {
+    return json({ error: "Couldn't send right now - try again in a bit" }, { status: 502 });
+  }
+
+  return json({ ok: true });
+}

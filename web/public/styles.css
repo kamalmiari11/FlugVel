@@ -888,6 +888,39 @@ tr:last-child td { border-bottom: none; }
 .form-error.show { display: block; }
 .auth-card fieldset button.act { width: 100%; margin-top: 16px; }
 
+/* ============== Support page ============== */
+.support-fieldset { max-width: 480px; }
+.support-fieldset button.act { width: 100%; margin-top: 18px; }
+.faq-list { max-width: 720px; }
+.faq-item {
+  border-bottom: 1px solid var(--line);
+  padding: 16px 0;
+}
+.faq-item:first-child { padding-top: 0; }
+.faq-item summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after {
+  content: "+";
+  flex: none;
+  font-family: var(--mono);
+  color: var(--dim);
+  font-size: 18px;
+  line-height: 1;
+  transition: transform .2s ease;
+}
+.faq-item[open] summary::after { content: "\2212"; }
+.faq-item p { margin: 12px 0 0; color: var(--dim); }
+.faq-item p a { color: var(--accent-ink); }
+
 /* ============== Dashboard ============== */
 .dash-header {
   display: flex;

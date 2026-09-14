@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlugVel — Support</title>
+<meta name="description" content="Get help with a FlugVel device: answers to common questions, and a direct line if you're still stuck.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="canonical" href="https://flugvel.com/support">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://flugvel.com/support">
+<meta property="og:title" content="FlugVel — Support">
+<meta property="og:description" content="Get help with a FlugVel device: answers to common questions, and a direct line if you're still stuck.">
+<meta property="og:image" content="https://flugvel.com/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FlugVel — Support">
+<meta name="twitter:description" content="Get help with a FlugVel device: answers to common questions, and a direct line if you're still stuck.">
+<meta name="twitter:image" content="https://flugvel.com/og-image.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="device-frame">
+  <div class="device-body">
+  <div class="screen-column">
+  <div class="bezel-label" aria-hidden="true">[ FLUGVEL ]</div>
+  <div class="device-screen" id="deviceScreen">
+
+    <header class="masthead-bar">
+      <div class="wrap">
+        <nav class="tabs" role="tablist">
+          <a class="tab" role="tab" href="/"><span class="n">01</span> Overview</a>
+          <a class="tab" role="tab" href="/manual"><span class="n">02</span> Manual</a>
+          <a class="tab active" role="tab" href="/support"><span class="n">03</span> Support</a>
+        </nav>
+      </div>
+    </header>
+
+    <section>
+      <div class="wrap">
+        <h1>Support</h1>
+        <p class="sub">Stuck on something? Check the questions below first — most of what comes up is covered there. Still stuck, or found something that looks like a bug? The form at the bottom goes straight to a real inbox, not a ticket queue.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head" data-reveal>
+          <div class="eyebrow">Common questions</div>
+          <h2>Before you write in</h2>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>My device won't connect to Wi-Fi</summary>
+            <p>Double-check the password and that you picked the right network during setup — the setup page stays open for another attempt if it fails. If you're not even seeing the setup screen on first boot, try a power cycle; if it still doesn't appear, a factory reset (hold both buttons for 15 seconds) usually clears it. Full walkthrough: <a href="/manual#setup">Manual §1</a>.</p>
+          </details>
+          <details class="faq-item">
+            <summary>A screen says "unavailable" or "not found"</summary>
+            <p>This is normal, not a bug report waiting to happen. "Not found" means whatever you configured (a stock ticker, usually) doesn't actually exist — check the spelling in the setup console. "Unavailable" is a transient hiccup — a network blip, a rate limit — that a later refresh usually clears on its own. See <a href="/manual#troubleshooting">Manual §8</a> for the specific cases.</p>
+          </details>
+          <details class="faq-item">
+            <summary>How do I install a firmware update?</summary>
+            <p>FlugVel checks for updates automatically after connecting to Wi-Fi, and any time you pick <strong>Update</strong> from the Settings menu. If one's available, it shows the version and release notes and asks before downloading — nothing installs without you confirming. Details: <a href="/manual#updates">Manual §6</a>.</p>
+          </details>
+          <details class="faq-item">
+            <summary>How do I reset my device?</summary>
+            <p>Hold both buttons (the knob's click button and the other one) together for 15 seconds. This clears saved Wi-Fi, location, theme and every other preference — you'll go through first-time setup again afterward. Same thing is also available from Settings → Factory Reset. See <a href="/manual#reset">Manual §7</a>.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Is my data private?</summary>
+            <p>Short version: your device talks directly to the services you configure it for (weather, flights, your own calendar/notes/stock accounts) — there's no FlugVel-run server collecting any of that. Full details are in the <a href="/privacy">privacy policy</a>.</p>
+          </details>
+          <details class="faq-item">
+            <summary>I found a bug, or want to suggest something</summary>
+            <p>That's exactly what the form below is for — include your firmware version (Settings → Device Info) and what you were doing when it happened, and it's much easier to track down.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap">
+        <div class="section-head" data-reveal>
+          <div class="eyebrow">Still stuck</div>
+          <h2>Get in touch</h2>
+          <p>Goes straight to a real inbox — expect a reply from a person, not an autoresponder, whenever there's time to get to it.</p>
+        </div>
+
+        <fieldset class="support-fieldset">
+          <legend>Message</legend>
+          <div class="form-error" id="supportError"></div>
+          <form id="supportForm">
+            <label for="supportName">Name <span class="badge">Optional</span></label>
+            <input type="text" id="supportName" name="name" maxlength="100" autocomplete="name">
+            <label for="supportEmail">Email <span class="badge req">Required</span></label>
+            <input type="email" id="supportEmail" name="email" autocomplete="email" required>
+            <label for="supportMessage">Message <span class="badge req">Required</span></label>
+            <textarea id="supportMessage" name="message" rows="6" maxlength="4000" required></textarea>
+            <!-- Honeypot: real visitors never see this, see index.html's
+                 signup form for the same pattern and why. -->
+            <input type="text" name="company" id="supportCompany" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <button type="submit" class="act" id="supportSubmit">Send message</button>
+          </form>
+          <p class="signup-status" id="supportStatus" role="status" aria-live="polite"></p>
+        </fieldset>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <span>FlugVel — a personal project.</span>
+        <a href="/privacy" class="footer-link">Privacy policy</a>
+      </div>
+    </footer>
+
+  </div>
+  </div>
+  <div class="device-controls" aria-hidden="true">
+    <div class="encoder"><span class="mark" id="encoderMark"></span></div>
+    <div class="kobtn" id="deviceButton"></div>
+  </div>
+  </div>
+</div>
+
+<script src="script.js" defer></script>
+</body>
+</html>

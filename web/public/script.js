@@ -565,6 +565,84 @@
   });
 })();
 
+// Support page: contact form (POST /api/support). Same JS-only reasoning
+// as the signup form above - the endpoint expects JSON, so there's no
+// non-JS fallback.
+(function () {
+  var form = document.getElementById("supportForm");
+  if (!form) return;
+  var nameInput = document.getElementById("supportName");
+  var emailInput = document.getElementById("supportEmail");
+  var messageInput = document.getElementById("supportMessage");
+  var honeypot = document.getElementById("supportCompany");
+  var errorBox = document.getElementById("supportError");
+  var status = document.getElementById("supportStatus");
+  var button = document.getElementById("supportSubmit");
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function setError(text) {
+    errorBox.textContent = text;
+    errorBox.classList.toggle("show", !!text);
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    setError("");
+    status.textContent = "";
+    status.className = "signup-status";
+
+    var email = emailInput.value.trim();
+    var message = messageInput.value.trim();
+    if (!email || !EMAIL_RE.test(email)) {
+      setError("Enter a valid email address.");
+      emailInput.focus();
+      return;
+    }
+    if (!message) {
+      setError("Enter a message.");
+      messageInput.focus();
+      return;
+    }
+
+    var original = button.textContent;
+    button.disabled = true;
+    button.textContent = "Sending…";
+
+    fetch("/api/support", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: nameInput ? nameInput.value.trim() : "",
+        email: email,
+        message: message,
+        company: honeypot ? honeypot.value : "",
+      }),
+    })
+      .then(function (res) {
+        return res
+          .json()
+          .catch(function () { return {}; })
+          .then(function (data) { return { ok: res.ok, data: data }; });
+      })
+      .then(function (result) {
+        if (result.ok) {
+          status.textContent = "Sent — you'll hear back by email.";
+          status.className = "signup-status success";
+          form.reset();
+        } else {
+          setError((result.data && result.data.error) || "Something went wrong – try again in a bit.");
+        }
+      })
+      .catch(function () {
+        setError("Couldn't reach the server – check your connection and try again.");
+      })
+      .then(function () {
+        button.disabled = false;
+        button.textContent = original;
+      });
+  });
+})();
+
 // Changelog: the markup lists releases as of the last site deploy. If the
 // firmware manifest on GitHub names a newer version, it becomes the lead
 // entry and the old lead joins the top of the list. Quietly does nothing
