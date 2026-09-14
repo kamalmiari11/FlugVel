@@ -1,4 +1,5 @@
 import { json } from "../_lib/auth.js";
+import { SUPPORT_CONFIRMATION_SUBJECT, supportConfirmationText, supportConfirmationHtml } from "../_lib/support-confirmation-email.js";
 
 // A deliberately loose but real email check - see subscribe.js for why.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -76,6 +77,30 @@ export async function onRequestPost(context) {
     }
   } catch {
     return json({ error: "Couldn't send right now - try again in a bit" }, { status: 502 });
+  }
+
+  // Best-effort confirmation back to whoever wrote in, same reasoning
+  // subscribe.js's welcome email uses: the message to SUPPORT_TO above is
+  // what actually matters and has already succeeded, so a failure here
+  // (Resend hiccup, whatever) shouldn't turn a successful submission into
+  // an error shown to the visitor.
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.RESEND_FROM || "FlugVel <onboarding@resend.dev>",
+        to: email,
+        subject: SUPPORT_CONFIRMATION_SUBJECT,
+        text: supportConfirmationText(name, message),
+        html: supportConfirmationHtml(name, message),
+      }),
+    });
+  } catch {
+    // Best-effort - see comment above.
   }
 
   return json({ ok: true });
