@@ -891,6 +891,7 @@ tr:last-child td { border-bottom: none; }
 /* ============== Support page ============== */
 .support-fieldset { max-width: 480px; }
 .support-fieldset button.act { width: 100%; margin-top: 18px; }
+.support-confirm[hidden] { display: none; }
 .support-confirm {
   display: flex;
   align-items: flex-start;
