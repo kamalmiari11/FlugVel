@@ -11,7 +11,8 @@ export const supportConfirmationText = (name, message) =>
   "within a few days, sometimes sooner.\n\n" +
   "For reference, here's what you sent:\n\n" +
   `"${message}"\n\n` +
-  "No need to send it again - this address is being watched.\n";
+  "In the meantime, the manual might already answer what you're after: " +
+  "https://flugvel.com/manual\n";
 
 export const supportConfirmationHtml = (name, message) => `<!doctype html>
 <html>
@@ -42,7 +43,7 @@ export const supportConfirmationHtml = (name, message) => `<!doctype html>
           </tr>
           <tr>
             <td style="padding:18px 32px 0 32px;">
-              <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; line-height:1.6; color:#5c6249;">We'll take a look and get back to you as soon as we can &mdash; usually within a few days, sometimes sooner. No need to send it again, this address is being watched.</p>
+              <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; line-height:1.6; color:#5c6249;">We'll take a look and get back to you as soon as we can &mdash; usually within a few days, sometimes sooner.</p>
             </td>
           </tr>
           <tr>
@@ -57,13 +58,8 @@ export const supportConfirmationHtml = (name, message) => `<!doctype html>
             </td>
           </tr>
           <tr>
-            <td style="padding:24px 32px 8px 32px; text-align:center;">
-              <a href="https://flugvel.com/support" style="display:inline-block; background-color:#c05a1e; color:#faf9f1; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; text-decoration:none; padding:12px 28px; border-radius:5px;">Back to Support</a>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:28px 32px 28px 32px; border-top:1px solid rgba(35,39,29,.14);">
-              <p style="margin:20px 0 0 0; font-family:Arial, Helvetica, sans-serif; font-size:12.5px; line-height:1.6; color:#8a9078; text-align:center;">This is a one-off reply to a message you sent &mdash; not a subscription, nothing to unsubscribe from.</p>
+            <td style="padding:24px 32px 28px 32px; text-align:center;">
+              <a href="https://flugvel.com/manual" style="display:inline-block; background-color:#c05a1e; color:#faf9f1; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; text-decoration:none; padding:12px 28px; border-radius:5px;">Browse the manual</a>
             </td>
           </tr>
         </table>

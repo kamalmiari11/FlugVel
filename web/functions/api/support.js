@@ -1,5 +1,6 @@
 import { json } from "../_lib/auth.js";
 import { SUPPORT_CONFIRMATION_SUBJECT, supportConfirmationText, supportConfirmationHtml } from "../_lib/support-confirmation-email.js";
+import { supportNotificationSubject, supportNotificationText, supportNotificationHtml } from "../_lib/support-notification-email.js";
 
 // A deliberately loose but real email check - see subscribe.js for why.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,9 +55,6 @@ export async function onRequestPost(context) {
     return json({ error: "Server not configured for sending" }, { status: 500 });
   }
 
-  const who = name ? `${name} <${email}>` : email;
-  const text = `From: ${who}\n\n${message}`;
-
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -70,8 +68,9 @@ export async function onRequestPost(context) {
         // So replying in the inbox goes straight back to whoever wrote in,
         // not to the FlugVel sending address.
         reply_to: email,
-        subject: `Support message from ${name || email}`,
-        text,
+        subject: supportNotificationSubject(name, email),
+        text: supportNotificationText(name, email, message),
+        html: supportNotificationHtml(name, email, message),
       }),
     });
     if (!res.ok) {
