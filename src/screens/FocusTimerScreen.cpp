@@ -260,12 +260,14 @@ void FocusTimerScreen::drawSetScreenRows() {
         snprintf(v, sizeof(v), "%d min", minutes);
         tft->setTextDatum(MC_DATUM);
         tft->setTextColor(sel ? t.selectFg : t.fg);
-        tft->drawString(v, W - 70, y + 18);
+        tft->drawString(v, W - 72, y + 18);
 
+        // Chevrons sit outside the widest value, "120 min" (84px at size 2,
+        // so W-114..W-30) - closer in, they overlapped any 2-3 digit value.
         uint16_t chev = sel ? t.selectFg : t.fgDim;
         int cy = y + 18;
-        tft->fillTriangle(W - 110, cy, W - 104, cy - 4, W - 104, cy + 4, chev);   // <
-        tft->fillTriangle(W - 26,  cy, W - 32,  cy - 4, W - 32,  cy + 4, chev);   // >
+        tft->fillTriangle(W - 128, cy, W - 122, cy - 4, W - 122, cy + 4, chev);   // <
+        tft->fillTriangle(W - 16,  cy, W - 22,  cy - 4, W - 22,  cy + 4, chev);   // >
     };
 
     row(56, "FOCUS", _focusMinutes, _state == SET_FOCUS);
