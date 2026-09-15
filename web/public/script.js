@@ -94,21 +94,43 @@
   }
   var knobEl = mark && mark.parentElement;
 
-  // "More below" hint: three dots at the bottom of the glass that fade out
-  // once you've started scrolling, and stay away at the bottom of the page.
-  var hint = document.createElement("div");
-  hint.className = "scroll-hint";
-  hint.setAttribute("aria-hidden", "true");
-  hint.innerHTML = "<i></i><i></i><i></i>";
-  screen.parentElement.appendChild(hint);
-  function updateHint() {
-    var more = screen.scrollHeight - screen.clientHeight - screen.scrollTop > 40;
-    hint.classList.toggle("show", more && screen.scrollTop < 60);
+  // Section pager: one dot per section down the left edge of the glass,
+  // with the one you're reading lit - like the device's own header pager.
+  // Sections are the screen's top-level blocks (hero + <section>s), or the
+  // manual's §-sections on a page that is one long layout.
+  var sections = screen.querySelectorAll(":scope > .wrap, :scope > section");
+  if (sections.length < 2) sections = screen.querySelectorAll(".manual-section");
+  if (sections.length > 1) {
+    var pager = document.createElement("div");
+    pager.className = "section-pager";
+    pager.setAttribute("aria-hidden", "true");
+    for (var i = 0; i < sections.length; i++) pager.appendChild(document.createElement("i"));
+    screen.parentElement.appendChild(pager);
+    var dots = pager.children, lit = -1;
+
+    var placePager = function () {
+      pager.style.top = screen.offsetTop + "px";
+      pager.style.height = screen.offsetHeight + "px";
+    };
+    var updatePager = function () {
+      var line = screen.getBoundingClientRect().top + screen.clientHeight * 0.4;
+      var cur = 0;
+      for (var j = 0; j < sections.length; j++) {
+        if (sections[j].getBoundingClientRect().top <= line) cur = j;
+      }
+      // At the very bottom, the last section counts even if it's short.
+      if (screen.scrollHeight - screen.clientHeight - screen.scrollTop < 4) cur = sections.length - 1;
+      if (cur === lit) return;
+      if (lit >= 0) dots[lit].classList.remove("on");
+      dots[cur].classList.add("on");
+      lit = cur;
+    };
+    screen.addEventListener("scroll", updatePager, { passive: true });
+    window.addEventListener("resize", function () { placePager(); updatePager(); });
+    window.addEventListener("load", function () { placePager(); updatePager(); });
+    placePager();
+    updatePager();
   }
-  screen.addEventListener("scroll", updateHint, { passive: true });
-  window.addEventListener("resize", updateHint);
-  window.addEventListener("load", updateHint);
-  updateHint();
 
   var pressTimer = null;
   function press() {

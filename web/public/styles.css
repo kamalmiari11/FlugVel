@@ -307,22 +307,19 @@ body {
   -ms-overflow-style: none;
 }
 .device-screen::-webkit-scrollbar { display: none; width: 0; height: 0; }
-/* "More below" hint (script.js): three dots stepping down at the bottom of
-   the glass, in the device's accent. Hidden once you've scrolled. */
+/* Section pager (script.js): one dot per section on the left edge of the
+   glass, the current one lit in the accent. Top/height are set from JS to
+   match the glass, since the bezel label sits above it in this column. */
 .screen-column { position: relative; }
-.scroll-hint {
-  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-  padding: 8px 7px; border-radius: 999px;
-  background: rgba(35, 39, 29, .55);
-  opacity: 0; transition: opacity .3s ease; pointer-events: none; z-index: 20;
+.section-pager {
+  position: absolute; left: 10px;
+  display: flex; flex-direction: column; justify-content: center; gap: 9px;
+  pointer-events: none; z-index: 20;
 }
-.scroll-hint.show { opacity: 1; }
-.scroll-hint i { width: 5px; height: 5px; border-radius: 50%; background: var(--bg); animation: hint-step 1.4s ease-in-out infinite; }
-.scroll-hint i:nth-child(2) { animation-delay: .18s; }
-.scroll-hint i:nth-child(3) { animation-delay: .36s; background: var(--accent); }
-@keyframes hint-step { 0%, 60%, 100% { opacity: .3; } 30% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .scroll-hint i { animation: none; opacity: .8; } }
+.section-pager i { width: 6px; height: 6px; border-radius: 50%; background: rgba(35, 39, 29, .28); transition: background .2s ease, transform .2s ease; }
+.section-pager i.on { background: var(--accent); transform: scale(1.35); }
+@media (max-width: 620px) { .section-pager { left: 5px; gap: 7px; } .section-pager i { width: 5px; height: 5px; } }
+@media (prefers-reduced-motion: reduce) { .section-pager i { transition: none; } }
 .device-controls {
   width: 210px;
   flex: none;
