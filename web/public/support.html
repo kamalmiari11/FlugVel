@@ -40,20 +40,24 @@
       </div>
     </header>
 
-    <section>
-      <div class="wrap">
+    <div class="wrap">
+      <div class="hero support-hero">
         <h1>Support</h1>
-        <p class="sub">Stuck on something? Check the questions below first — most of what comes up is covered there. Still stuck, or found something that looks like a bug? The form at the bottom goes straight to a real inbox, not a ticket queue.</p>
+        <p class="sub">Most questions are answered below. Still stuck, or found a bug? The form goes straight to a real inbox, not a ticket queue.</p>
+        <div class="cta-row">
+          <a href="#faq" class="act ghost">Read the FAQ</a>
+          <a href="#contact" class="act">Get in touch</a>
+        </div>
       </div>
-    </section>
+    </div>
 
-    <section>
+    <section class="support-faq" id="faq">
       <div class="wrap">
         <div class="section-head" data-reveal>
-          <div class="eyebrow">Common questions</div>
-          <h2>Before you write in</h2>
+          <h2>FAQ</h2>
+          <p>The things that come up most. Each answer links to the full manual section.</p>
         </div>
-        <div class="faq-list">
+        <div class="faq-list" data-reveal>
           <details class="faq-item">
             <summary>My device won't connect to Wi-Fi</summary>
             <p>Double-check the password and that you picked the right network during setup — the setup page stays open for another attempt if it fails. If you're not even seeing the setup screen on first boot, try a power cycle; if it still doesn't appear, a factory reset (hold both buttons for 15 seconds) usually clears it. Full walkthrough: <a href="/manual#setup">Manual §1</a>.</p>
@@ -82,15 +86,33 @@
       </div>
     </section>
 
-    <section class="alt">
-      <div class="wrap">
-        <div class="section-head" data-reveal>
-          <div class="eyebrow">Still stuck</div>
-          <h2>Get in touch</h2>
-          <p>Goes straight to a real inbox — expect a reply from a person, not an autoresponder, whenever there's time to get to it.</p>
+    <section class="alt" id="contact">
+      <div class="wrap support-contact">
+        <div class="support-aside" data-reveal>
+          <div class="section-head">
+            <h2>Get in touch</h2>
+            <p>Goes straight to a real inbox. Expect a reply from a person, usually within a few days.</p>
+          </div>
+          <div class="timeline">
+            <div class="timeline-item">
+              <span class="dot">01</span>
+              <div class="step-head"><h3>Firmware version</h3></div>
+              <p>Settings &rarr; Device Info on the device.</p>
+            </div>
+            <div class="timeline-item">
+              <span class="dot">02</span>
+              <div class="step-head"><h3>What you were doing</h3></div>
+              <p>Which screen, and what you pressed or turned.</p>
+            </div>
+            <div class="timeline-item">
+              <span class="dot">03</span>
+              <div class="step-head"><h3>What happened</h3></div>
+              <p>What you expected, and what you saw instead.</p>
+            </div>
+          </div>
         </div>
 
-        <fieldset class="support-fieldset">
+        <fieldset class="support-fieldset" data-reveal>
           <legend>Message</legend>
           <div class="form-error" id="supportError"></div>
           <div class="support-confirm" id="supportConfirm" role="status" hidden>
