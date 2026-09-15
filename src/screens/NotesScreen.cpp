@@ -444,7 +444,7 @@ void NotesScreen::drawList() {
         uint16_t fg = sel ? t.selectFg : t.fg;
 
         tft->fillRect(rowX, y, rowW, ROW_H - 2, bg);
-        if (sel) tft->fillRect(rowX, y, 4, ROW_H - 2, t.accent);
+        if (sel) tft->fillRect(rowX, y, 4, ROW_H - 2, t.selectMark);
 
         if (n.isHeading) {
             // A closed day's own done-count ("(2/3)"), right-aligned,

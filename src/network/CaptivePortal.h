@@ -139,7 +139,7 @@ public:
 
     // Which UI theme is active, as a small numeric id matching
     // ThemeRegistry's table (see src/ui/Theme.h/.cpp) - 0 is always the
-    // default (Mono Dot-Matrix). In-memory only - call saveLocationEEPROM()
+    // default (Meadow). In-memory only - call saveLocationEEPROM()
     // afterwards to persist, same pattern as above. Not currently exposed
     // in the Settings UI - this just makes the storage/read path exist so
     // it can be wired up later without any further plumbing.
@@ -218,7 +218,7 @@ private:
     int _simonBestScore = 0;
     int _airTrafficBestScore = 0;
 
-    // Default matches ThemeRegistry's default (index 0, Mono Dot-Matrix).
+    // Default matches ThemeRegistry's default (index 0, Meadow).
     uint8_t _themeId = 0;
     uint8_t _dateTimeFormat = 0;   // index into Units' format table
     bool    _imperial = false;     // false = Metric, true = Imperial

@@ -174,7 +174,7 @@ void StockScreen::drawList() {
         bool sel = (idx == _sel);
 
         tft->fillRect(rowX, y, rowW, ROW_H - 4, sel ? t.selectBg : t.bg);
-        if (sel) tft->fillRect(rowX, y, 4, ROW_H - 4, t.accent);
+        if (sel) tft->fillRect(rowX, y, 4, ROW_H - 4, t.selectMark);
 
         uint16_t fg = sel ? t.selectFg : t.fg;
         uint16_t fgDim = sel ? t.selectFg : t.fgDim;

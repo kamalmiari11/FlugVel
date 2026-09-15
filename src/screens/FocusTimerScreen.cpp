@@ -249,7 +249,7 @@ void FocusTimerScreen::drawSetScreenRows() {
 
     auto row = [&](int y, const char* label, int minutes, bool sel) {
         UiChrome::drawPanelRow(tft, 10, y, W - 20, 34, sel, t.bg, t.selectBg);
-        if (sel) tft->fillRect(10, y, 4, 34, t.accent);          // left accent bar
+        if (sel) tft->fillRect(10, y, 4, 34, t.selectMark);          // left accent bar
 
         tft->setTextDatum(ML_DATUM);
         tft->setTextSize(2);

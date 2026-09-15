@@ -253,7 +253,7 @@ void SettingsScreen::drawMainMenu(bool fullRepaint) {
 
         tft->fillRect(rowX, top, rowW, MENU_ROW_H, selected ? theme.selectBg : theme.bg);
         if (selected)
-            tft->fillRect(rowX, top, 4, MENU_ROW_H, theme.accent); // left accent bar
+            tft->fillRect(rowX, top, 4, MENU_ROW_H, theme.selectMark); // left accent bar
 
         tft->setTextSize(2);
         tft->setTextDatum(TL_DATUM);

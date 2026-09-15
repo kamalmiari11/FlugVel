@@ -712,7 +712,7 @@ void setup() {
         Serial.println("[Main] No saved WiFi found.");
     }
 
-    // Apply the persisted theme choice (defaults to Mono Dot-Matrix if
+    // Apply the persisted theme choice (defaults to Meadow if
     // there's nothing saved yet, e.g. first-ever boot or no saved WiFi to
     // have loaded it from) before the boot screen draws anything.
     ThemeManager::begin(portal.getThemeId());

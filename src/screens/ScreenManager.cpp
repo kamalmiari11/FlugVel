@@ -487,7 +487,7 @@ void ScreenManager::drawSwitcher(bool full) {
         uint16_t tileBg = hl ? theme.selectBg : theme.bg;
         tft->fillRect(x, tileY, SWITCHER_TILE, SWITCHER_TILE, tileBg);
         tft->drawRect(x, tileY, SWITCHER_TILE, SWITCHER_TILE, hl ? theme.selectBg : theme.rule);
-        if (hl) tft->fillRect(x, tileY + SWITCHER_TILE - 4, SWITCHER_TILE, 4, theme.accent);
+        if (hl) tft->fillRect(x, tileY + SWITCHER_TILE - 4, SWITCHER_TILE, 4, theme.selectMark);
 
         drawScreenIcon(tft, screens[_cycle[cycleIdx]]->id(),
                        x + SWITCHER_TILE / 2, tileY + SWITCHER_TILE / 2 - 2,

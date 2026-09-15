@@ -600,7 +600,15 @@ button.act.ghost{background:transparent;color:var(--fg);border-color:var(--rule)
 
     // ================= script =================
     p += R"HTML(<script>
-var TH={bg:'#c8d0b8',fg:'#2a2e22',dim:'#4a5038',rule:'#8a9078',ac:'#c05a1e'};
+/* Mirrors ThemeRegistry in ui/Theme.cpp (same order = same saved id). */
+var THS=[
+{n:'Meadow',bg:'#c8d0b8',fg:'#1f231a',dim:'#4a5040',rule:'#8a9078',sel:'#23271d',sf:'#eef1e4',mk:'#d2692a',ac:'#a8480f'},
+{n:'Linen',bg:'#f4f3ec',fg:'#1c1c1a',dim:'#5e5e56',rule:'#c4c3b6',sel:'#1c1c1a',sf:'#f4f3ec',mk:'#d8641a',ac:'#d8641a'},
+{n:'Forest',bg:'#1a1c17',fg:'#d6dcc8',dim:'#9aa18a',rule:'#3b4034',sel:'#2f3529',sf:'#f2f5ea',mk:'#ef8a3c',ac:'#ef8a3c'},
+{n:'Onyx',bg:'#0d0f10',fg:'#e9f7f9',dim:'#8fb4ba',rule:'#2b3a3d',sel:'#9edbe6',sf:'#0d0f10',mk:'#0d0f10',ac:'#f08a3a'}];
+var TH=THS[)HTML";
+    p += String(c.themeId < 4 ? c.themeId : 0);
+    p += R"HTML(];
 var W=320,H=240,HH=20,LH=30,pos=0,ang=0;
 /* Written by the device: the screen actually on the panel right now, so the
    preview opens showing what you are looking at rather than always home. */
@@ -737,36 +745,36 @@ if(id=='1'){var o=T(10,24,cv(12,true),t.fg,24)+T(100,26,'Partly cloudy',t.dim)
 +T(240,58,'Hi',t.fg)+T(280,58,'Lo',t.fg)+R(10,69,300,1,t.rule);
 var d=[['Mon','Clear',14,6],['Tue','Cloudy',13,7],['Wed','Rain',11,8],['Thu','Rain',10,6],
 ['Fri','Clear',12,4],['Sat','Clear',15,5],['Sun','Cloudy',13,7]],nd=+val('wdays',7);
-for(var i=0;i<Math.min(nd,7);i++){var y=74+i*19,s=i==0;if(s)o+=R(6,y-3,306,17,t.fg);
-o+=T(10,y,d[i][0],s?t.bg:(i==0?t.ac:t.dim))+T(65,y,d[i][1],s?t.bg:t.dim)
-+T(240,y,cv(d[i][2]),s?t.bg:t.fg)+T(280,y,cv(d[i][3]),s?t.bg:t.dim);}return o;}
+for(var i=0;i<Math.min(nd,7);i++){var y=74+i*19,s=i==0;if(s)o+=R(6,y-3,306,17,t.sel);
+o+=T(10,y,d[i][0],s?t.sf:(i==0?t.ac:t.dim))+T(65,y,d[i][1],s?t.sf:t.dim)
++T(240,y,cv(d[i][2]),s?t.sf:t.fg)+T(280,y,cv(d[i][3]),s?t.sf:t.dim);}return o;}
 if(id=='2'){var g=[['Flappy Plane','BEST 27'],['Paddle Catch','BEST 14'],
 ['Reaction Timer','SOON'],['Simon Says','SOON']],o='',r=0;
 for(var i=0;i<4;i++){var h=document.getElementById('h_g'+i);if(h&&h.value=='0')continue;
-var y=44+r*36,s=r==0;r++;o+=R(6,y,308,36,s?t.fg:t.bg);if(s)o+=R(6,y,4,36,t.ac);
-o+=T(18,y+10,g[i][0],s?t.bg:t.fg,16)+T(306,y+14,g[i][1],s?t.bg:t.dim,8,'r');}
+var y=44+r*36,s=r==0;r++;o+=R(6,y,308,36,s?t.sel:t.bg);if(s)o+=R(6,y,4,36,t.mk);
+o+=T(18,y+10,g[i][0],s?t.sf:t.fg,16)+T(306,y+14,g[i][1],s?t.sf:t.dim,8,'r');}
 return r?o:T(160,110,'No games enabled',t.dim,8,'c');}
 if(id=='3'){var f=+val('ffoc',25),b=+val('fbrk',5);
 return T(14,34,'SESSION',t.dim)+R(14,46,292,1,t.rule)
-+R(10,56,300,34,t.fg)+R(10,56,4,34,t.ac)+T(26,66,'FOCUS',t.bg,16)+T(250,66,f+' min',t.bg,16,'c')
++R(10,56,300,34,t.sel)+R(10,56,4,34,t.mk)+T(26,66,'FOCUS',t.sf,16)+T(250,66,f+' min',t.sf,16,'c')
 +T(26,106,'BREAK',t.dim,16)+T(250,106,b+' min',t.fg,16,'c')+T(14,138,'starts now',t.dim);}
 if(id=='4'){var u=false;for(var i=0;i<4;i++){var e=document.querySelector('[name=cu'+i+']');
 if(e&&e.value.length>7)u=true;}
 if(!u)return T(160,104,'No calendar linked',t.fg,16,'c')+T(160,128,'add an iCal link',t.dim,8,'c');
 var ev=[['Today','09:30','Standup'],['Today','14:00','Design review'],['Tomorrow','11:00','Dentist'],
 ['Thu 11','19:30','Flight KL1071'],['Sat 13','08:00','Parkrun'],['Mon 15','all day','Deadline']],o='';
-for(var i=0;i<6;i++){var y=26+i*30,s=i==0;o+=R(6,y,308,28,s?t.fg:t.bg);if(s)o+=R(6,y,4,28,t.ac);
-o+=T(16,y+3,ev[i][0],s?t.bg:t.ac)+T(16,y+15,ev[i][1],s?t.bg:t.dim)+T(84,y+6,ev[i][2],s?t.bg:t.fg,16);}
+for(var i=0;i<6;i++){var y=26+i*30,s=i==0;o+=R(6,y,308,28,s?t.sel:t.bg);if(s)o+=R(6,y,4,28,t.mk);
+o+=T(16,y+3,ev[i][0],s?t.sf:t.ac)+T(16,y+15,ev[i][1],s?t.sf:t.dim)+T(84,y+6,ev[i][2],s?t.sf:t.fg,16);}
 return o;}
 /* SettingsScreen::drawMainMenu - MENU_Y0 22, MENU_ROW_H 20, a 4px gap
    before the destructive pair, labels at top+4. Six entries since the
    flight interval, home screen, clock and units moved onto this page. */
-var op=[['Device info',''],['Theme','Mono'],['Configure on phone',''],
+var op=[['Device info',''],['Theme',TH.n],['Configure on phone',''],
 ['Software update','v1.0.3'],['Restart device',''],['Factory reset','']],o='';
 for(var x=10;x<310;x+=7)o+=R(x,104,3,1,t.rule);
-for(var i=0;i<6;i++){var y=22+i*20+(i>=4?4:0),s=i==0;o+=R(6,y,308,20,s?t.fg:t.bg);
-if(s)o+=R(6,y,4,20,t.ac);o+=T(18,y+4,op[i][0],s?t.bg:(i>=4?'#b03020':t.fg),16);
-if(op[i][1])o+=T(308,y+9,op[i][1]+' >',s?t.bg:t.dim,8,'r');}return o;}
+for(var i=0;i<6;i++){var y=22+i*20+(i>=4?4:0),s=i==0;o+=R(6,y,308,20,s?t.sel:t.bg);
+if(s)o+=R(6,y,4,20,t.mk);o+=T(18,y+4,op[i][0],s?t.sf:(i>=4?'#b03020':t.fg),16);
+if(op[i][1])o+=T(308,y+9,op[i][1]+' >',s?t.sf:t.dim,8,'r');}return o;}
 function pv(){var st=document.getElementById('stg');if(!st)return;var t=TH;
 var cyc=[];document.querySelectorAll('#sl li[data-id]').forEach(function(li){
 if(li.dataset.on=='1')cyc.push({id:li.dataset.id,n:li.querySelector('.sname').textContent});});

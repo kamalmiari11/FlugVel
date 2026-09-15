@@ -24,60 +24,25 @@
 #define MY_GRAY       0x8410   // gray
 #define MY_DARK_GRAY  0x4208   // dark gray
 
-// ==== "Mono dot-matrix" theme palette ====
-// Derived the same way MY_BLACK/MY_WHITE above already were: MY_BLACK =
-// 0xFFFF and MY_WHITE = 0x0000 are exact 16-bit bitwise complements of
-// plain black/white, and that's the only relationship in this file that
-// can be verified from the existing constants alone (the other MY_* colors
-// don't reduce to a single clean rule). So these new tones are generated
-// with that same "send the bitwise complement of the RGB565 value you
-// actually want" transform, computed from the palette's real hex colors:
-//   MY_MONO_BG      <- #c8d0b8 (pale sage)
-//   MY_MONO_FG      <- #2a2e22 (dark olive / near-black)
-//   MY_MONO_FG_DIM  <- #4a5038 (muted olive-gray)
-//   MY_MONO_RULE    <- #8a9078 (soft gray-green hairline)
-// NOTE: this hasn't been verified against the physical panel - if any of
-// these render inverted/off relative to the rest of the UI, re-derive them
-// following the same steps (RGB888 -> RGB565 -> bitwise complement) or
-// swap to the not-inverted RGB565 value instead.
-#define MY_MONO_BG        0x3168   // pale sage background
-#define MY_MONO_FG        0xD69B   // dark olive foreground text/lines
-#define MY_MONO_FG_DIM    0xB578   // muted olive-gray secondary text
-#define MY_MONO_RULE      0x7370   // soft gray-green hairline rule
-#define MY_MONO_SELECT_BG MY_MONO_FG   // selected-row fill: dark olive...
-#define MY_MONO_SELECT_FG MY_MONO_BG   // ...with light (inverted) text
-
-// ==== Extra themes ====
-// This panel wants the BITWISE COMPLEMENT of the RGB565 value you actually
-// want on screen (that's the same transform MY_BLACK/MY_WHITE and the Mono
-// palette above already use). PANEL_RGB() bakes that in: pass the real
-// 8-bit-per-channel colour you want to see and it yields the value to store.
+// ==== Theme colours ====
+// This panel (a no-name ST7789 clone) INVERTS the value and SWAPS red and
+// blue: it shows swapRB(~sent). Every exact primary in the table above fits
+// that rule (black, white, red, blue, cyan, magenta, yellow); the rest of
+// the table (green, orange, pink...) are hand-picked approximations, not a
+// second rule. PANEL_RGB() applies the inverse - pass the real colour you
+// want to see (e.g. PANEL_HEX(0xc8d0b8)) and it yields the value to send.
+// An earlier version only inverted, which left red and blue swapped.
 #define RGB565_OF(r, g, b) ((uint16_t)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | (((b) & 0xF8) >> 3)))
-#define PANEL_RGB(r, g, b) ((uint16_t)(~RGB565_OF((r), (g), (b)) & 0xFFFF))
+#define PANEL_RGB(r, g, b) ((uint16_t)(~RGB565_OF((b), (g), (r)) & 0xFFFF))
+#define PANEL_HEX(h)       PANEL_RGB(((h) >> 16) & 0xFF, ((h) >> 8) & 0xFF, (h) & 0xFF)
 
-// Amber Terminal - warm CRT amber on near-black.
-#define MY_AMBER_BG        PANEL_RGB(0x1A, 0x12, 0x00)
-#define MY_AMBER_FG        PANEL_RGB(0xFF, 0xB0, 0x00)
-#define MY_AMBER_FG_DIM    PANEL_RGB(0x9C, 0x6B, 0x00)
-#define MY_AMBER_RULE      PANEL_RGB(0x5A, 0x3F, 0x00)
-#define MY_AMBER_ACCENT    PANEL_RGB(0xFF, 0x70, 0x00)
-#define MY_AMBER_ACCENT2   PANEL_RGB(0xB8, 0xFF, 0x00)
-#define MY_AMBER_DANGER    PANEL_RGB(0xFF, 0x30, 0x30)
-
-// Green Phosphor - classic terminal green.
-#define MY_PHOS_BG         PANEL_RGB(0x00, 0x12, 0x00)
-#define MY_PHOS_FG         PANEL_RGB(0x33, 0xFF, 0x77)
-#define MY_PHOS_FG_DIM     PANEL_RGB(0x18, 0x9C, 0x47)
-#define MY_PHOS_RULE       PANEL_RGB(0x0A, 0x5A, 0x28)
-#define MY_PHOS_ACCENT     PANEL_RGB(0xFF, 0xD0, 0x00)
-#define MY_PHOS_ACCENT2    PANEL_RGB(0x66, 0xFF, 0xCC)
-#define MY_PHOS_DANGER     PANEL_RGB(0xFF, 0x55, 0x55)
-
-// Ice Blue - cool pale blue on deep navy.
-#define MY_ICE_BG          PANEL_RGB(0x04, 0x12, 0x1E)
-#define MY_ICE_FG          PANEL_RGB(0xCF, 0xEA, 0xFF)
-#define MY_ICE_FG_DIM      PANEL_RGB(0x6F, 0x9B, 0xC0)
-#define MY_ICE_RULE        PANEL_RGB(0x35, 0x56, 0x6E)
-#define MY_ICE_ACCENT      PANEL_RGB(0xFF, 0xCA, 0x3A)
-#define MY_ICE_ACCENT2     PANEL_RGB(0x6E, 0xE7, 0xFF)
-#define MY_ICE_DANGER      PANEL_RGB(0xFF, 0x5C, 0x7C)
+// Pin the rule to the values verified on the real panel - if a different
+// screen ever needs a different rule, these fail the build instead of
+// silently recolouring every theme.
+static_assert(PANEL_HEX(0x000000) == MY_BLACK,   "panel rule: black");
+static_assert(PANEL_HEX(0xFFFFFF) == MY_WHITE,   "panel rule: white");
+static_assert(PANEL_HEX(0xFF0000) == MY_RED,     "panel rule: red");
+static_assert(PANEL_HEX(0x0000FF) == MY_BLUE,    "panel rule: blue");
+static_assert(PANEL_HEX(0x00FFFF) == MY_CYAN,    "panel rule: cyan");
+static_assert(PANEL_HEX(0xFF00FF) == MY_MAGENTA, "panel rule: magenta");
+static_assert(PANEL_HEX(0xFFFF00) == MY_YELLOW,  "panel rule: yellow");

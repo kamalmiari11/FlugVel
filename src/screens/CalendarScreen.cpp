@@ -323,7 +323,7 @@ void CalendarScreen::drawList() {
         bool sel = (idx == _sel);
 
         tft->fillRect(rowX, y, rowW, ROW_H - 2, sel ? t.selectBg : t.bg);
-        if (sel) tft->fillRect(rowX, y, 4, ROW_H - 2, t.accent);
+        if (sel) tft->fillRect(rowX, y, 4, ROW_H - 2, t.selectMark);
 
         // left column: relative day + time
         tft->setTextSize(1);

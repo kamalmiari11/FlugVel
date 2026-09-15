@@ -15,6 +15,8 @@ struct Theme {
     uint16_t rule;        // hairline rule color
     uint16_t selectBg;    // selected-row fill
     uint16_t selectFg;    // selected-row (inverted) text
+    uint16_t selectMark;  // the 4px bar on a selected row - drawn ON selectBg,
+                          // so it needs contrast against that, not against bg
     uint16_t accent;      // warnings / "today" / needs-attention highlight
     uint16_t accent2;     // positive/good (e.g. best score, up-to-date)
     uint16_t danger;      // errors / cancel / game-over
@@ -25,13 +27,13 @@ struct Theme {
 };
 
 namespace ThemeRegistry {
-    extern const Theme MonoDotMatrix;
-    extern const Theme AmberTerminal;
-    extern const Theme GreenPhosphor;
-    extern const Theme IceBlue;
+    extern const Theme Meadow;
+    extern const Theme Linen;
+    extern const Theme Forest;
+    extern const Theme Onyx;
 
     // Looks up a theme by its persisted numeric id (see CaptivePortal's
-    // theme storage). Falls back to MonoDotMatrix for any id it doesn't
+    // theme storage). Falls back to Meadow for any id it doesn't
     // recognize - keeps this forward-compatible with EEPROM values written
     // by a firmware that knows about more themes than this build does.
     const Theme& byId(uint8_t id);

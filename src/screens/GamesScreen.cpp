@@ -252,7 +252,7 @@ void GamesScreen::drawMenu(bool fullRepaint) {
 
         tft->fillRect(rowX, top, rowW, rowH, selected ? theme.selectBg : theme.bg);
         if (selected)
-            tft->fillRect(rowX, top, 4, rowH, theme.accent);
+            tft->fillRect(rowX, top, 4, rowH, theme.selectMark);
 
         tft->setTextSize(2);
         tft->setTextDatum(TL_DATUM);
