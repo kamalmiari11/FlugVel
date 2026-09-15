@@ -103,8 +103,22 @@
   if (sections.length > 1) {
     var pager = document.createElement("div");
     pager.className = "section-pager";
-    pager.setAttribute("aria-hidden", "true");
-    for (var i = 0; i < sections.length; i++) pager.appendChild(document.createElement("i"));
+    pager.setAttribute("role", "navigation");
+    pager.setAttribute("aria-label", "Page sections");
+    var bar = screen.querySelector(".masthead-bar");
+    Array.prototype.forEach.call(sections, function (sec, i) {
+      var h = sec.querySelector("h1, h2");
+      var dot = document.createElement("button");
+      dot.type = "button";
+      dot.title = h ? h.textContent.replace(/^\s*\d+\.\s*/, "").trim() : "Section " + (i + 1);
+      dot.setAttribute("aria-label", dot.title);
+      dot.addEventListener("click", function () {
+        // Land the section just under the sticky tab bar.
+        var top = sec.getBoundingClientRect().top - screen.getBoundingClientRect().top + screen.scrollTop;
+        screen.scrollTo({ top: Math.max(0, top - (bar ? bar.offsetHeight : 0)), behavior: reduceMotion ? "auto" : "smooth" });
+      });
+      pager.appendChild(dot);
+    });
     screen.parentElement.appendChild(pager);
     var dots = pager.children, lit = -1;
 
@@ -130,6 +144,24 @@
     window.addEventListener("load", function () { placePager(); updatePager(); });
     placePager();
     updatePager();
+  }
+
+  // Phone held sideways: put the knob column on the side the bottom of the
+  // phone points to, where your thumb already is. angle 90 = turned
+  // counter-clockwise (bottom on the right), 270 = clockwise (bottom left).
+  function sideFromRotation() {
+    // window.screen, not `screen` - that name is the glass element in here.
+    var so = window.screen.orientation;
+    var a = so && typeof so.angle === "number"
+      ? so.angle
+      : (typeof window.orientation === "number" ? (window.orientation + 360) % 360 : 0);
+    document.documentElement.classList.toggle("controls-left", a === 270);
+  }
+  sideFromRotation();
+  if (window.screen.orientation && window.screen.orientation.addEventListener) {
+    window.screen.orientation.addEventListener("change", sideFromRotation);
+  } else {
+    window.addEventListener("orientationchange", sideFromRotation);
   }
 
   var pressTimer = null;

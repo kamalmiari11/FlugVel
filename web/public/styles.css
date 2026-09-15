@@ -312,14 +312,25 @@ body {
    match the glass, since the bezel label sits above it in this column. */
 .screen-column { position: relative; }
 .section-pager {
-  position: absolute; left: 10px;
-  display: flex; flex-direction: column; justify-content: center; gap: 9px;
+  position: absolute; left: 5px;
+  display: flex; flex-direction: column; justify-content: center; gap: 1px;
   pointer-events: none; z-index: 20;
 }
-.section-pager i { width: 6px; height: 6px; border-radius: 50%; background: rgba(35, 39, 29, .28); transition: background .2s ease, transform .2s ease; }
-.section-pager i.on { background: var(--accent); transform: scale(1.35); }
-@media (max-width: 620px) { .section-pager { left: 5px; gap: 7px; } .section-pager i { width: 5px; height: 5px; } }
-@media (prefers-reduced-motion: reduce) { .section-pager i { transition: none; } }
+/* Each dot is a button with a 16px hit area around the 6px dot. */
+.section-pager button {
+  pointer-events: auto; cursor: pointer;
+  width: 16px; height: 16px; padding: 0; border: 0; background: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.section-pager button::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(35, 39, 29, .28); transition: background .2s ease, transform .2s ease;
+}
+.section-pager button:hover::before { background: rgba(35, 39, 29, .6); transform: scale(1.35); }
+.section-pager button.on::before { background: var(--accent); transform: scale(1.35); }
+.section-pager button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 50%; }
+@media (max-width: 620px) { .section-pager { left: 1px; } .section-pager button::before { width: 5px; height: 5px; } }
+@media (prefers-reduced-motion: reduce) { .section-pager button::before { transition: none; } }
 .device-controls {
   width: 210px;
   flex: none;
@@ -410,6 +421,67 @@ body {
   .encoder .mark { width: 4px; height: 22px; top: 7px; transform-origin: 50% 43px; }
   .kobtn { width: 52px; height: 52px; }
   .kobtn::after { width: 23px; height: 23px; }
+}
+
+/* ---- Per-device layouts ----
+   Knob sizes below each come with a matching mark: transform-origin's y is
+   (knob size / 2 - mark top) so the mark pivots around the knob's centre. */
+
+/* Phone upright: slim control strip, more of the screen for the site. */
+@media (max-width: 620px) and (orientation: portrait) {
+  .device-body { gap: 10px; }
+  .device-controls { height: 76px; gap: 64px; }
+  .encoder { width: 64px; height: 64px; }
+  .encoder::after { inset: 9px; }
+  .encoder .mark { width: 3px; height: 15px; top: 5px; transform-origin: 50% 27px; }
+  .kobtn { width: 36px; height: 36px; border-radius: 9px; }
+  .kobtn::after { width: 16px; height: 16px; }
+}
+
+/* Phone sideways: the real device's shape - screen plus a narrow control
+   column - with a tight bezel and no nameplate. The column follows the
+   rotation (script.js sets .controls-left) so it sits under your thumb. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .device-frame { inset: 6px; padding: 10px 12px; border-radius: 18px; }
+  .device-body { flex-direction: row; gap: 12px; }
+  .screen-column { order: 0; gap: 0; }
+  .bezel-label { display: none; }
+  .device-screen { border-radius: 10px; }
+  .device-controls { order: 0; width: 76px; height: auto; flex-direction: column; gap: 36px; }
+  .controls-left .device-body { flex-direction: row-reverse; }
+  .encoder { width: 64px; height: 64px; }
+  .encoder::after { inset: 9px; }
+  .encoder .mark { width: 3px; height: 15px; top: 5px; transform-origin: 50% 27px; }
+  .kobtn { width: 36px; height: 36px; border-radius: 9px; }
+  .kobtn::after { width: 16px; height: 16px; }
+}
+
+/* Tablet upright: controls in a row below, so the site gets the full width
+   instead of losing 240px to the side column. */
+@media (min-width: 621px) and (max-width: 1100px) and (orientation: portrait) {
+  .device-frame { inset: 14px; padding: 26px; border-radius: 26px; }
+  .device-body { flex-direction: column; gap: 16px; }
+  .screen-column { gap: 14px; }
+  .device-controls { width: auto; height: 116px; flex-direction: row; gap: 110px; }
+  .encoder { width: 96px; height: 96px; }
+  .encoder::after { inset: 13px; }
+  .encoder .mark { width: 4px; height: 22px; top: 7px; transform-origin: 50% 41px; }
+  .kobtn { width: 54px; height: 54px; border-radius: 12px; }
+  .kobtn::after { width: 24px; height: 24px; }
+}
+
+/* Tablet sideways (touch screens only, so laptops keep the full desktop
+   bezel): same layout, tighter bezel and a smaller knob column. */
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) and (min-height: 501px) {
+  .device-frame { inset: 10px; padding: 22px; border-radius: 24px; }
+  .device-body { gap: 20px; }
+  .screen-column { gap: 12px; }
+  .device-controls { width: 140px; gap: 56px; }
+  .encoder { width: 112px; height: 112px; }
+  .encoder::after { inset: 15px; }
+  .encoder .mark { width: 5px; height: 26px; top: 8px; transform-origin: 50% 48px; }
+  .kobtn { width: 60px; height: 60px; border-radius: 13px; }
+  .kobtn::after { width: 27px; height: 27px; }
 }
 
 /* ============== Scroll reveal ============== */
@@ -929,9 +1001,7 @@ tr:last-child td { border-bottom: none; }
    surface cards, the numbered timeline and a form card beside it. */
 .support-hero { padding: 72px 0 56px; }
 .support-hero .sub { max-width: 52ch; }
-.support-faq { padding-top: 12px; }
-#faq, #contact { scroll-margin-top: 60px; } /* clear the sticky tab bar */
-.support-contact { display: grid; grid-template-columns: 5fr 6fr; gap: 56px; align-items: start; }
+.support-faq { padding-top: 12px; }.support-contact { display: grid; grid-template-columns: 5fr 6fr; gap: 56px; align-items: start; }
 .support-aside .section-head { margin-bottom: 32px; }
 .support-fieldset { margin: 0; padding: 22px 26px 28px; box-shadow: var(--shadow-md); }
 .support-fieldset button.act { width: 100%; margin-top: 18px; }
