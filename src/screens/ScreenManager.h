@@ -113,15 +113,10 @@ private:
     // Opened by HOLDING the encoder button down (see handleEncoderInput()),
     // not by a normal click - a normal click keeps doing exactly what it
     // always did (advance to the next screen). Releasing the button that
-    // opened it does nothing - the switcher stays up so it can actually be
-    // browsed hands-free on the knob, closing only on a fresh hold of the
-    // encoder (same threshold, same button, just pressed again). While
-    // open, turning the knob moves a highlight across every screen in the
-    // cycle instead of reaching the underlying screen's onEncoderUp/
-    // onEncoderDown, and KO jumps straight to the highlighted screen
-    // instead of reaching the underlying screen's onButtonPress(). A short
-    // press/release while it's open does nothing either way - only KO
-    // (choose) or another hold (cancel) end it.
+    // opened it does nothing - the switcher stays up to be browsed. While
+    // open, turning the knob moves the highlight (the underlying screen
+    // sees nothing), a click of the encoder confirms the highlighted screen,
+    // and KO discards and returns to the screen you were on.
     bool _switcherOpen = false;
     int  _switcherHighlight = 0;     // index into _cycle, not into screens
 
@@ -143,6 +138,6 @@ private:
     void moveSwitcherHighlight(int direction);
     void closeSwitcherCancel();
     void closeSwitcherConfirm();
-    void drawSwitcher();
+    void drawSwitcher(bool full);   // full = whole body; false = just tiles + name
     static void drawScreenIcon(TFT_eSPI* tft, ScreenId id, int cx, int cy, uint16_t fg, uint16_t bg);
 };

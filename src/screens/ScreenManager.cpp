@@ -270,9 +270,10 @@ void ScreenManager::handleEncoderInput() {
             }
 
             if (_switcherOpen) {
-                // A short press/release while the switcher is already open
-                // does nothing - KO is what actually picks a screen, and
-                // only a fresh hold (below) closes it without picking one.
+                // A click while the switcher is open confirms the
+                // highlighted screen (KO discards). The release of the hold
+                // that opened it never gets here - see _longPressFired above.
+                closeSwitcherConfirm();
                 return;
             }
 
@@ -296,14 +297,12 @@ void ScreenManager::handleEncoderInput() {
     // Long-press detection while the button is still held down - polled on
     // every call (not gated by the debounce above, which only guards state
     // *changes*) so it can fire without waiting for a release. Runs whether
-    // the switcher is open or closed: closed, a hold opens it; open, a
-    // fresh hold closes it (cancel) - the same gesture toggles both ways.
-    if (currentState == LOW && !_longPressFired) {
+    // the switcher is closed: a hold opens it. While it's open a hold is
+    // ignored here and simply confirms on release, like a click.
+    if (currentState == LOW && !_longPressFired && !_switcherOpen) {
         if (now - _encoderPressStart >= LONG_PRESS_MS) {
             _longPressFired = true;
-            if (_switcherOpen) {
-                closeSwitcherCancel();
-            } else if (screens[_cycle[_cyclePos]]->allowsScreenSwitch()) {
+            if (screens[_cycle[_cyclePos]]->allowsScreenSwitch()) {
                 openSwitcher();
             } else {
                 // Same lock the short press already respects - a running
@@ -371,10 +370,10 @@ void ScreenManager::handleButtonInput() {
 
             if (currentState == LOW) {
                 if (_switcherOpen) {
-                    // KO is "choose this one" while the switcher is
-                    // showing, instead of reaching the underlying screen.
-                    Serial.println("[ScreenManager] KO pressed - confirming switcher selection");
-                    closeSwitcherConfirm();
+                    // KO discards the switcher and goes back to the screen
+                    // you were on, instead of reaching that screen.
+                    Serial.println("[ScreenManager] KO pressed - cancelling switcher");
+                    closeSwitcherCancel();
                 } else {
                     // KO button pressed - call current screen's button handler
                     Serial.println("[ScreenManager] KO button pressed");
@@ -388,7 +387,7 @@ void ScreenManager::handleButtonInput() {
 // ============================================================================
 // SCREEN SWITCHER OVERLAY
 // ============================================================================
-// A long-press-to-open, hold-nothing, KO-to-confirm picker over every screen
+// A hold-to-open, turn-to-browse, click-to-confirm, KO-to-discard picker over every screen
 // in the cycle (same list the header's dot pager already walks). See the
 // member comments in ScreenManager.h for the input-handling side of this;
 // everything below is just opening/closing it and drawing it.
@@ -397,14 +396,14 @@ void ScreenManager::openSwitcher() {
     _switcherOpen = true;
     _switcherHighlight = _cyclePos;
     Serial.println("[ScreenManager] Switcher opened");
-    drawSwitcher();
+    drawSwitcher(true);
 }
 
 void ScreenManager::moveSwitcherHighlight(int direction) {
     int n = (int)_cycle.size();
     if (n <= 0) return;
     _switcherHighlight = ((_switcherHighlight + direction) % n + n) % n;
-    drawSwitcher();
+    drawSwitcher(false);
 }
 
 void ScreenManager::closeSwitcherCancel() {
@@ -439,60 +438,67 @@ void ScreenManager::closeSwitcherConfirm() {
 // Layout for the switcher's tile strip. Local to this file, not the header,
 // since nothing outside drawSwitcher()/drawScreenIcon() needs them.
 static const int SWITCHER_HEADER_H = 20;
-static const int SWITCHER_TILE     = 50;
+static const int SWITCHER_TILE     = 52;
 static const int SWITCHER_GAP      = 8;
-static const int SWITCHER_VISIBLE  = 4;   // tiles shown at once, highlight always in slot 1
+static const int SWITCHER_VISIBLE  = 5;   // tiles shown at once, highlight always in the middle slot
 
-void ScreenManager::drawSwitcher() {
+void ScreenManager::drawSwitcher(bool full) {
     if (_cycle.empty()) return;
 
     const Theme &theme = ThemeManager::current();
     const int n = (int)_cycle.size();
-
-    // Clear everything below the header - the header itself is left alone
-    // on purpose (still shows whatever screen is actually current, which
-    // hasn't changed yet), so nothing needs invalidating there while this
-    // is up.
+    const int W = tft->width();
     const int top = SWITCHER_HEADER_H;
-    tft->fillRect(0, top, tft->width(), tft->height() - top, theme.bg);
+    const int tileY = top + 58;
+    const int nameY = tileY + SWITCHER_TILE + 16;
 
-    UiChrome::drawBracketTitle(tft, "SWITCH SCREEN", 12, top + 14, theme.fgDim);
+    if (full) {
+        // Whole body once, on open. The header is left alone on purpose -
+        // it still names the screen that's actually current.
+        tft->fillRect(0, top, W, tft->height() - top, theme.bg);
+        UiChrome::drawBracketTitle(tft, "SWITCH SCREEN", 12, top + 14, theme.fgDim);
+        tft->drawFastHLine(12, top + 30, W - 24, theme.rule);
 
-    const int stripW = SWITCHER_VISIBLE * SWITCHER_TILE + (SWITCHER_VISIBLE - 1) * SWITCHER_GAP;
-    const int stripX = (tft->width() - stripW) / 2;
-    const int tileY  = top + 70;
-
-    for (int slot = 0; slot < SWITCHER_VISIBLE; slot++) {
-        // Slot 1 (second from the left) always shows the highlighted
-        // screen; slot 0 is one step back, slots 2/3 are one and two steps
-        // ahead. Wraps cleanly for any cycle length via the usual
-        // "add n before the mod" trick for a possibly-negative index.
-        int cycleIdx = ((_switcherHighlight - 1 + slot) % n + n) % n;
-        bool highlighted = (slot == 1);
-        int x = stripX + slot * (SWITCHER_TILE + SWITCHER_GAP);
-
-        uint16_t tileBg    = highlighted ? theme.selectBg : theme.bg;
-        uint16_t iconColor = highlighted ? theme.selectFg : theme.fgDim;
-
-        tft->fillRoundRect(x, tileY, SWITCHER_TILE, SWITCHER_TILE, 8, tileBg);
-        tft->drawRoundRect(x, tileY, SWITCHER_TILE, SWITCHER_TILE, 8, theme.rule);
-
-        drawScreenIcon(tft, screens[_cycle[cycleIdx]]->id(),
-                       x + SWITCHER_TILE / 2, tileY + SWITCHER_TILE / 2, iconColor, tileBg);
+        const int hintY = tft->height() - 26;
+        tft->drawFastHLine(12, hintY - 8, W - 24, theme.rule);
+        tft->setTextDatum(TC_DATUM);
+        tft->setTextSize(1);
+        tft->setTextColor(theme.fgDim, theme.bg);
+        tft->drawString("TURN browse   PRESS select   KO back", W / 2, hintY);
+    } else {
+        // Knob moves only touch the tile strip and the name line - no
+        // full-panel flash per detent.
+        tft->fillRect(0, tileY - 6, W, SWITCHER_TILE + 12, theme.bg);
+        tft->fillRect(0, nameY, W, 18, theme.bg);
     }
 
-    // Name of the highlighted screen, centered under the strip - confirms
-    // what KO is actually about to switch to.
+    const int stripW = SWITCHER_VISIBLE * SWITCHER_TILE + (SWITCHER_VISIBLE - 1) * SWITCHER_GAP;
+    const int stripX = (W - stripW) / 2;
+    const int mid = SWITCHER_VISIBLE / 2;
+
+    for (int slot = 0; slot < SWITCHER_VISIBLE; slot++) {
+        // Middle slot is the highlight; the rest are steps back/ahead, wrapped.
+        int cycleIdx = ((_switcherHighlight - mid + slot) % n + n) % n;
+        bool hl = (slot == mid);
+        int x = stripX + slot * (SWITCHER_TILE + SWITCHER_GAP);
+
+        // Same selected-row language as every list: selectBg fill plus the
+        // accent bar, just along the bottom edge of a tile instead of the left.
+        uint16_t tileBg = hl ? theme.selectBg : theme.bg;
+        tft->fillRect(x, tileY, SWITCHER_TILE, SWITCHER_TILE, tileBg);
+        tft->drawRect(x, tileY, SWITCHER_TILE, SWITCHER_TILE, hl ? theme.selectBg : theme.rule);
+        if (hl) tft->fillRect(x, tileY + SWITCHER_TILE - 4, SWITCHER_TILE, 4, theme.accent);
+
+        drawScreenIcon(tft, screens[_cycle[cycleIdx]]->id(),
+                       x + SWITCHER_TILE / 2, tileY + SWITCHER_TILE / 2 - 2,
+                       hl ? theme.selectFg : theme.fgDim, tileBg);
+    }
+
     Screen* hs = screens[_cycle[_switcherHighlight]];
     tft->setTextDatum(TC_DATUM);
     tft->setTextSize(2);
     tft->setTextColor(theme.fg, theme.bg);
-    tft->drawString(hs->getName(), tft->width() / 2, tileY + SWITCHER_TILE + 14);
-
-    tft->setTextSize(1);
-    tft->setTextColor(theme.fgDim, theme.bg);
-    tft->drawString("turn: browse   KO: switch   hold again: cancel",
-                     tft->width() / 2, tileY + SWITCHER_TILE + 42);
+    tft->drawString(hs->getName(), W / 2, nameY);
 
     tft->setTextDatum(TL_DATUM);   // restore the default every other screen assumes
 }
@@ -524,82 +530,95 @@ void ScreenManager::drawScreenIcon(TFT_eSPI* tft, ScreenId id, int cx, int cy, u
             break;
         }
 
+        // The rest are 2px line art, not solid blobs - the same hairline
+        // language as the rules, brackets and panel borders around them.
+        // Outlines of compound shapes are made by filling the shape in `fg`
+        // and then the same shape inset by 2px in `bg`, which gives a clean
+        // union outline without tracing arcs by hand.
+
         case ScreenId::Weather: {
-            // Puffy cloud: three overlapping circles of different sizes
-            // plus a filled "valley" between them so it reads as one solid
-            // shape rather than three separate dots.
-            tft->fillCircle(cx - 9, cy + 3, 9, fg);
-            tft->fillCircle(cx + 3, cy - 6, 11, fg);
-            tft->fillCircle(cx + 15, cy + 3, 8, fg);
-            tft->fillRect(cx - 18, cy + 2, 41, 9, fg);
+            // Sun peeking over a cloud.
+            tft->drawCircle(cx + 7, cy - 7, 7, fg);
+            tft->drawCircle(cx + 7, cy - 7, 6, fg);
+            tft->fillCircle(cx - 6, cy + 3, 8, fg);
+            tft->fillCircle(cx + 4, cy - 2, 9, fg);
+            tft->fillRoundRect(cx - 16, cy + 3, 34, 10, 4, fg);
+            tft->fillCircle(cx - 6, cy + 3, 6, bg);
+            tft->fillCircle(cx + 4, cy - 2, 7, bg);
+            tft->fillRoundRect(cx - 14, cy + 5, 30, 6, 2, bg);
             break;
         }
 
         case ScreenId::Games: {
-            // Two-lobe game-controller silhouette (a wide rounded body
-            // reads better at this size than a "handles + bridge" shape),
-            // with a d-pad and two face buttons cut into it.
-            tft->fillRoundRect(cx - 20, cy - 10, 40, 20, 9, fg);
-            tft->fillRect(cx - 13, cy - 1, 7, 2, bg);
-            tft->fillRect(cx - 11, cy - 3, 2, 6, bg);
-            tft->fillCircle(cx + 9, cy - 4, 2, bg);
-            tft->fillCircle(cx + 14, cy, 2, bg);
+            // Controller outline with a d-pad and two buttons.
+            tft->fillRoundRect(cx - 19, cy - 10, 38, 20, 8, fg);
+            tft->fillRoundRect(cx - 17, cy - 8, 34, 16, 6, bg);
+            tft->fillRect(cx - 12, cy - 1, 8, 2, fg);
+            tft->fillRect(cx - 9, cy - 4, 2, 8, fg);
+            tft->fillCircle(cx + 8, cy - 2, 2, fg);
+            tft->fillCircle(cx + 12, cy + 2, 2, fg);
             break;
         }
 
         case ScreenId::Focus: {
-            // Hourglass: two triangles meeting at a point, with rounded
-            // top/bottom caps.
-            tft->fillRoundRect(cx - 11, cy - 13, 22, 3, 1, fg);
-            tft->fillRoundRect(cx - 11, cy + 10, 22, 3, 1, fg);
-            tft->fillTriangle(cx - 9, cy - 10, cx + 9, cy - 10, cx, cy, fg);
-            tft->fillTriangle(cx - 9, cy + 10, cx + 9, cy + 10, cx, cy, fg);
-            // A few grains already through the neck - small, but it's the
-            // detail that says "timer" instead of just "geometric shape".
-            tft->fillRect(cx - 1, cy + 2, 2, 2, bg);
-            tft->fillRect(cx - 2, cy + 5, 2, 2, bg);
+            // Stopwatch: ring, crown, one hand.
+            tft->fillCircle(cx, cy + 2, 12, fg);
+            tft->fillCircle(cx, cy + 2, 10, bg);
+            tft->fillRect(cx - 4, cy - 15, 8, 2, fg);
+            tft->fillRect(cx - 1, cy - 13, 2, 3, fg);
+            tft->fillRect(cx - 1, cy - 5, 2, 8, fg);
+            tft->fillRect(cx, cy + 1, 6, 2, fg);
             break;
         }
 
         case ScreenId::Calendar: {
-            // Solid page with two binder tabs poking out the top, a
-            // cut-in header separator, and a small grid of date dots.
-            tft->fillRoundRect(cx - 13, cy - 11, 26, 22, 3, fg);
-            tft->fillRoundRect(cx - 8, cy - 15, 4, 6, 1, fg);
-            tft->fillRoundRect(cx + 4, cy - 15, 4, 6, 1, fg);
-            tft->fillRect(cx - 13, cy - 4, 26, 2, bg);
-            for (int r = 0; r < 2; r++) {
-                for (int c = 0; c < 3; c++) {
-                    tft->fillRect(cx - 8 + c * 7, cy + r * 6, 2, 2, bg);
-                }
-            }
+            // Page outline, filled header band, binder tabs, date dots.
+            tft->fillRect(cx - 13, cy - 11, 26, 24, fg);
+            tft->fillRect(cx - 11, cy - 4, 22, 15, bg);
+            tft->fillRect(cx - 8, cy - 15, 2, 6, fg);
+            tft->fillRect(cx + 6, cy - 15, 2, 6, fg);
+            for (int r = 0; r < 2; r++)
+                for (int c = 0; c < 3; c++)
+                    tft->fillRect(cx - 7 + c * 6, cy + r * 5, 2, 2, fg);
             break;
         }
 
         case ScreenId::Notes: {
-            // Solid page with a folded top-right corner and a few lines of
-            // "text" cut in.
-            tft->fillRoundRect(cx - 11, cy - 13, 22, 26, 2, fg);
-            tft->fillTriangle(cx + 5, cy - 13, cx + 11, cy - 13, cx + 11, cy - 7, bg);
-            tft->fillRect(cx - 6, cy - 4, 14, 2, bg);
-            tft->fillRect(cx - 6, cy + 1, 14, 2, bg);
-            tft->fillRect(cx - 6, cy + 6, 9, 2, bg);
+            // Page outline with a dog-ear and three text lines.
+            tft->fillRect(cx - 11, cy - 13, 22, 26, fg);
+            tft->fillRect(cx - 9, cy - 11, 18, 22, bg);
+            tft->fillTriangle(cx + 4, cy - 13, cx + 11, cy - 13, cx + 11, cy - 6, bg);
+            tft->drawLine(cx + 4, cy - 13, cx + 11, cy - 6, fg);
+            tft->drawLine(cx + 3, cy - 13, cx + 11, cy - 5, fg);
+            tft->fillRect(cx - 6, cy - 4, 12, 2, fg);
+            tft->fillRect(cx - 6, cy + 1, 12, 2, fg);
+            tft->fillRect(cx - 6, cy + 6, 8, 2, fg);
+            break;
+        }
+
+        case ScreenId::Stock: {
+            // Axis corner and a rising zig-zag ending in an arrowhead.
+            tft->fillRect(cx - 14, cy - 13, 2, 26, fg);
+            tft->fillRect(cx - 14, cy + 11, 28, 2, fg);
+            static const int8_t P[4][2] = { {-9, 5}, {-3, -1}, {2, 3}, {10, -7} };
+            for (int i = 0; i < 3; i++)
+                for (int d = 0; d < 2; d++)
+                    tft->drawLine(cx + P[i][0], cy + P[i][1] + d, cx + P[i + 1][0], cy + P[i + 1][1] + d, fg);
+            tft->fillTriangle(cx + 13, cy - 10, cx + 5, cy - 9, cx + 12, cy - 2, fg);
             break;
         }
 
         case ScreenId::Settings: {
-            // Gear: a hub, a ring of eight teeth at fixed offsets (no trig
-            // needed for a small fixed shape like this), and a punched-out
-            // center hole.
-            tft->fillCircle(cx, cy, 12, fg);
+            // Gear outline: teeth + ring, hollowed, with a small hub.
+            tft->fillCircle(cx, cy, 11, fg);
             static const int8_t OFFS[8][2] = {
-                {0, -15}, {0, 15}, {-15, 0}, {15, 0},
-                {11, -11}, {11, 11}, {-11, -11}, {-11, 11},
+                {0, -13}, {0, 13}, {-13, 0}, {13, 0},
+                {9, -9}, {9, 9}, {-9, -9}, {-9, 9},
             };
-            for (int i = 0; i < 8; i++) {
-                tft->fillRect(cx + OFFS[i][0] - 3, cy + OFFS[i][1] - 3, 6, 6, fg);
-            }
-            tft->fillCircle(cx, cy, 5, bg);
+            for (int i = 0; i < 8; i++)
+                tft->fillRect(cx + OFFS[i][0] - 2, cy + OFFS[i][1] - 2, 5, 5, fg);
+            tft->fillCircle(cx, cy, 8, bg);
+            tft->fillCircle(cx, cy, 3, fg);
             break;
         }
 
