@@ -580,6 +580,23 @@ void GamesScreen::updateFlappy() {
     drawFlappyFrame();
 }
 
+// Score in the top-left of a game, on a bg-coloured plate sized to the
+// number itself (12px per digit at size 2, plus a 2px margin) so it grows
+// with the score instead of a fixed 50-60px box hiding the playfield.
+// prev is the last drawn score: when it had more digits (Air Traffic's
+// penalty can drop 10 -> 9) its wider plate is cleared first.
+static void drawHudScore(TFT_eSPI *tft, int score, int prev, const Theme &theme) {
+    const int PLAY_TOP = 20;
+    auto plateW = [](int v) { int d = 1; for (v = abs(v); v >= 10; v /= 10) d++; return d * 12 + 4; };
+    if (prev >= 0 && plateW(prev) > plateW(score))
+        tft->fillRect(8, PLAY_TOP + 2, plateW(prev), 18, theme.bg);
+    tft->fillRect(8, PLAY_TOP + 2, plateW(score), 18, theme.bg);
+    tft->setTextSize(2);
+    tft->setTextColor(theme.fg);
+    tft->setCursor(10, PLAY_TOP + 4);
+    tft->print(score);
+}
+
 // Paints (or erases, if color is MY_BLACK) one full pipe column - the top
 // obstacle from just below the header down to the gap, and the bottom
 // obstacle from the gap down to the floor. Used for the very first frame
@@ -622,10 +639,7 @@ void GamesScreen::drawFlappyFrame() {
         PlaneSprite::drawSmallCentered(tft, planeX, (int)_flappyPlaneY, PlaneSprite::E, theme.accent);
         _flappyLastDrawnPlaneY = _flappyPlaneY;
 
-        tft->setTextSize(2);
-        tft->setTextColor(theme.fg);
-        tft->setCursor(10, PLAY_TOP + 4);
-        tft->print(_flappyScore);
+        drawHudScore(tft, _flappyScore, _flappyLastDrawnScore, theme);
         _flappyLastDrawnScore = _flappyScore;
 
         _flappyFirstFrame = false;
@@ -676,13 +690,8 @@ void GamesScreen::drawFlappyFrame() {
 
     // ---- Score ---- always redrawn last, unconditionally, so nothing
     // drawn above (pipes scrolling through, the plane) can ever end up
-    // painted over it - and the erase box is wide enough for double-digit
-    // scores so a stray "1" doesn't get left behind when going 9 -> 10.
-    tft->fillRect(8, PLAY_TOP + 2, 50, 20, theme.bg);
-    tft->setTextSize(2);
-    tft->setTextColor(theme.fg);
-    tft->setCursor(10, PLAY_TOP + 4);
-    tft->print(_flappyScore);
+    // painted over it.
+    drawHudScore(tft, _flappyScore, _flappyLastDrawnScore, theme);
     _flappyLastDrawnScore = _flappyScore;
 }
 
@@ -835,11 +844,7 @@ void GamesScreen::drawPaddleFrame() {
         _paddleLastDrawnPlaneY = _paddlePlaneY;
         _paddlePlaneJustSpawned = false;
 
-        tft->fillRect(8, PLAY_TOP + 2, 60, 20, theme.bg);
-        tft->setTextSize(2);
-        tft->setTextColor(theme.fg);
-        tft->setCursor(10, PLAY_TOP + 4);
-        tft->print(_paddleScore);
+        drawHudScore(tft, _paddleScore, _paddleLastDrawnScore, theme);
         _paddleLastDrawnScore = _paddleScore;
 
         drawPaddleLives(tft, _paddleLives, PADDLE_START_LIVES, theme.bg, theme.accent);
@@ -895,11 +900,7 @@ void GamesScreen::drawPaddleFrame() {
     bool planeInHudRow = ((int)_paddlePlaneY - half <= PLAY_TOP + 20);
 
     if (_paddleScore != _paddleLastDrawnScore || respawned || planeInHudRow) {
-        tft->fillRect(8, PLAY_TOP + 2, 60, 20, theme.bg);
-        tft->setTextSize(2);
-        tft->setTextColor(theme.fg);
-        tft->setCursor(10, PLAY_TOP + 4);
-        tft->print(_paddleScore);
+        drawHudScore(tft, _paddleScore, _paddleLastDrawnScore, theme);
         _paddleLastDrawnScore = _paddleScore;
     }
 
@@ -1276,11 +1277,7 @@ void GamesScreen::updateAirTraffic() {
             if (i == _airSelectedLane) drawAirLaneCursor(tft, laneCenterY, theme.accent);
         }
 
-        tft->fillRect(8, PLAY_TOP + 2, 60, 20, theme.bg);
-        tft->setTextSize(2);
-        tft->setTextColor(theme.fg);
-        tft->setCursor(10, PLAY_TOP + 4);
-        tft->print(_airScore);
+        drawHudScore(tft, _airScore, _airLastDrawnScore, theme);
         _airLastDrawnScore = _airScore;
 
         drawPaddleLives(tft, _airLives, AIRTRAFFIC_START_LIVES, theme.bg, theme.danger);
@@ -1322,11 +1319,7 @@ void GamesScreen::updateAirTraffic() {
     _airLastDrawnSelectedLane = _airSelectedLane;
 
     if (_airScore != _airLastDrawnScore) {
-        tft->fillRect(8, PLAY_TOP + 2, 60, 20, theme.bg);
-        tft->setTextSize(2);
-        tft->setTextColor(theme.fg);
-        tft->setCursor(10, PLAY_TOP + 4);
-        tft->print(_airScore);
+        drawHudScore(tft, _airScore, _airLastDrawnScore, theme);
         _airLastDrawnScore = _airScore;
     }
 
