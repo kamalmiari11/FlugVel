@@ -41,7 +41,10 @@
 </header>
 
 <div class="wrap manual-layout">
-  <div class="toc">
+  <div class="toc" id="manualToc">
+    <button class="toc-toggle" id="tocToggle" type="button" aria-expanded="true" aria-controls="manualToc" title="Hide contents">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg><span>Contents</span>
+    </button>
     <div class="manual-search" id="manualSearchWrap">
       <input type="text" id="manualSearch" placeholder="Search the manual…" aria-label="Search the manual">
       <button class="clear-btn" id="manualSearchClear" type="button" aria-label="Clear search">&times;</button>

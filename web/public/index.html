@@ -54,7 +54,6 @@
     <div class="wrap">
       <div class="hero hero-split">
         <div class="hero-copy">
-          <div class="eyebrow">Personal build <b>·</b> One knob <b>·</b> v1.0.25</div>
           <h1>A little box that watches the sky so I don't have to.</h1>
           <p class="sub">Flights, weather, your calendar, your notes, stock prices, a focus timer, two working games. All on one knob. No app. You're looking at it right now, actually — this whole page is running on its screen.</p>
           <div class="cta-row">
@@ -71,7 +70,6 @@
       <div class="run-pin">
         <div class="wrap">
         <div class="section-head" data-reveal>
-          <div class="eyebrow">What it does</div>
           <h2>Eight screens. One knob.</h2>
           <p>Turn to move, click to switch screens. Reorder or hide any of them.</p>
         </div>
@@ -178,22 +176,18 @@
           <h2>Still being worked on.</h2>
           <p>New firmware installs from the device's Settings. Here's what changed lately.</p>
         </div>
-        <!-- Newest first. script.js swaps the lead entry for update_manifest.json
-             on GitHub when a newer release is out, so this never goes stale. -->
+        <!-- The last three releases, newest first. script.js swaps the lead
+             entry for update_manifest.json on GitHub when a newer release is
+             out and drops the oldest, so it stays at three. -->
         <div class="changelog" id="changelog" data-reveal>
           <article class="release-lead">
-            <div class="release-ver">v1.0.25</div>
-            <time datetime="2026-09-13">13 Sep 2026</time>
-            <p>A new Stocks screen: price and day change for up to ten tickers, bring your own free API key. Calendar and Notes now show a loading skeleton instead of a blank screen while their first fetch is out, and every background fetch in the firmware now waits its turn instead of occasionally colliding and failing on low memory.</p>
+            <div class="release-ver">v1.0.26</div>
+            <time datetime="2026-09-15">15 Sep 2026</time>
+            <p>Four new themes &mdash; Meadow, Linen, Forest and Onyx &mdash; with colours finally showing correctly on the panel. The screen switcher is quicker to use, stocks load together instead of one row at a time, and the Focus timer and game scores no longer get drawn over.</p>
           </article>
           <ol class="release-list">
+            <li><span class="release-ver">v1.0.25</span><p>A new Stocks screen, loading skeletons for Calendar and Notes, and background fetches that no longer collide on low memory.</p></li>
             <li><span class="release-ver">v1.0.24</span><p>Fixed the air traffic game erasing its runway lines where planes passed, and the boot update prompt running off the bottom of the screen.</p></li>
-            <li><span class="release-ver">v1.0.23</span><p>Boot, calendar and notes no longer freeze the device on a slow network. The plane screen's loading indicator no longer erases the border.</p></li>
-            <li><span class="release-ver">v1.0.22</span><p>The plane screen stops refetching every time you turn back to it.</p></li>
-            <li><span class="release-ver">v1.0.20</span><p>The calendar shows repeating events: weekly, monthly and yearly.</p></li>
-            <li><span class="release-ver">v1.0.18</span><p>Air Traffic is a real game now. Land planes only once they reach the approach zone.</p></li>
-            <li><span class="release-ver">v1.0.15</span><p>Hold the knob to open a screen switcher.</p></li>
-            <li><span class="release-ver">v1.0.14</span><p>Simon Says and Air Traffic join the games.</p></li>
           </ol>
         </div>
       </div>
@@ -214,7 +208,6 @@
     <section class="updates-signup">
       <div class="wrap">
         <div class="section-head center">
-          <div class="eyebrow">Follow along</div>
           <h2>Get an email when something changes.</h2>
           <p>New firmware, new features, the occasional build note. No set schedule, no spam.</p>
         </div>

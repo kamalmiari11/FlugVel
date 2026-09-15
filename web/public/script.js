@@ -69,6 +69,47 @@
     { passive: true }
   );
 
+  // The page body never scrolls (the glass does), so a wheel or swipe over
+  // the case, bezel or controls used to do nothing. Forward it to the glass.
+  // Events that start on the glass itself scroll it natively, untouched.
+  var frame = document.querySelector(".device-frame");
+  if (frame) {
+    frame.addEventListener("wheel", function (e) {
+      if (screen.contains(e.target) || e.ctrlKey) return; // ctrl+wheel = browser zoom
+      e.preventDefault();
+      var dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * screen.clientHeight : e.deltaY;
+      screen.scrollTop += dy;
+    }, { passive: false });
+
+    var touchY = null;
+    frame.addEventListener("touchstart", function (e) {
+      touchY = !screen.contains(e.target) && !(knobEl && knobEl.contains(e.target)) && e.touches.length === 1 ? e.touches[0].clientY : null;
+    }, { passive: true });
+    frame.addEventListener("touchmove", function (e) {
+      if (touchY === null) return;
+      var y = e.touches[0].clientY;
+      screen.scrollTop += touchY - y;
+      touchY = y;
+    }, { passive: true });
+  }
+  var knobEl = mark && mark.parentElement;
+
+  // "More below" hint: three dots at the bottom of the glass that fade out
+  // once you've started scrolling, and stay away at the bottom of the page.
+  var hint = document.createElement("div");
+  hint.className = "scroll-hint";
+  hint.setAttribute("aria-hidden", "true");
+  hint.innerHTML = "<i></i><i></i><i></i>";
+  screen.parentElement.appendChild(hint);
+  function updateHint() {
+    var more = screen.scrollHeight - screen.clientHeight - screen.scrollTop > 40;
+    hint.classList.toggle("show", more && screen.scrollTop < 60);
+  }
+  screen.addEventListener("scroll", updateHint, { passive: true });
+  window.addEventListener("resize", updateHint);
+  window.addEventListener("load", updateHint);
+  updateHint();
+
   var pressTimer = null;
   function press() {
     if (!btn) return;
@@ -643,6 +684,24 @@
   });
 })();
 
+// Manual: collapse the contents sidebar to the left. Remembered per browser.
+(function () {
+  var btn = document.getElementById("tocToggle");
+  var layout = document.querySelector(".manual-layout");
+  if (!btn || !layout) return;
+  function set(collapsed) {
+    layout.classList.toggle("toc-collapsed", collapsed);
+    btn.setAttribute("aria-expanded", String(!collapsed));
+    btn.title = collapsed ? "Show contents" : "Hide contents";
+  }
+  try { set(localStorage.getItem("manualTocCollapsed") === "1"); } catch (e) {}
+  btn.addEventListener("click", function () {
+    var collapsed = !layout.classList.contains("toc-collapsed");
+    set(collapsed);
+    try { localStorage.setItem("manualTocCollapsed", collapsed ? "1" : "0"); } catch (e) {}
+  });
+})();
+
 // Changelog: the markup lists releases as of the last site deploy. If the
 // firmware manifest on GitHub names a newer version, it becomes the lead
 // entry and the old lead joins the top of the list. Quietly does nothing
@@ -667,7 +726,7 @@
       li.lastChild.textContent = lead.querySelector("p").textContent;
       var list = box.querySelector(".release-list");
       list.insertBefore(li, list.firstChild);
-      if (list.children.length > 5) list.removeChild(list.lastElementChild);
+      while (list.children.length > 2) list.removeChild(list.lastElementChild); // lead + 2 = last 3 releases
       lead.querySelector(".release-ver").textContent = "v" + m.version;
       lead.querySelector("p").textContent = m.notes || "";
       lead.querySelector("time").hidden = true; // the manifest carries no date
