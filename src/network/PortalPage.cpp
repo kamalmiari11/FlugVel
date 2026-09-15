@@ -190,8 +190,10 @@ button.act.ghost{background:transparent;color:var(--fg);border-color:var(--rule)
 .ok{border:1px solid var(--accent);color:var(--accent);padding:9px 10px;margin:0 0 14px;font-size:12px;text-align:center}
 .warn{border:1px solid var(--req);color:var(--req);padding:9px 10px;margin:0 0 14px;font-size:12px;text-align:center}
 .custom-grid{display:grid;grid-template-columns:minmax(0,850px) minmax(0,1fr);gap:20px;align-items:start}
-@media(max-width:1320px){.custom-grid{grid-template-columns:1fr}.device-col{position:static}}
 .device-col{position:sticky;top:20px;min-width:0;overflow:hidden}
+/* Must come after the base rule - declared before it, the sticky won and
+   the controls scrolled over the demo case in the one-column layout. */
+@media(max-width:1320px){.custom-grid{grid-template-columns:1fr}.device-col{position:static}}
 .bezel{display:flex;align-items:center;gap:18px;background:#1d1f1a;padding:22px;
  border:1px solid var(--rule);box-shadow:inset 0 0 0 2px #2c2f27;width:fit-content;max-width:100%}
 .bezel.lefthand{flex-direction:row-reverse}
@@ -795,7 +797,7 @@ st.innerHTML=h;st.style.filter='brightness('+(0.45+0.55*br/100).toFixed(3)+')';
 var vp=document.getElementById('vp'),sh=document.querySelector('.shell');
 var shw=(sh&&sh.clientWidth)||360;
 var colw=(window.innerWidth>1320)?850:shw;
-var sc=Math.max(0.55,Math.min(1.75,Math.min(560,colw-212)/320));
+var sc=Math.max(0.4,Math.min(1.75,Math.min(560,colw-212)/320));
 var flip=lh&&lh.value=='1';
 /* Deliberately no rotation. Turning the board around is what would put
    the display upside down; setRotation(3) on the device cancels that

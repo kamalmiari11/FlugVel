@@ -229,22 +229,27 @@ bool CaptivePortal::guardWithPin()
     String page = R"rawliteral(<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"><meta charset="utf-8">
 <title>FlugVel</title><style>
+*{box-sizing:border-box}
 body{margin:0;padding:60px 16px;background:#c8d0b8;color:#23271d;
  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;text-align:center;}
-h1{font-size:20px;letter-spacing:4px;margin:0 0 6px;font-weight:700;}
-p{color:#5a6048;font-size:13px;margin:0 0 26px;}
-form{max-width:280px;margin:0 auto;}
+h1{font-size:26px;letter-spacing:6px;margin:0;font-weight:700;}
+h1 b{color:#8a9078;}
+p{color:#5a6048;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin:6px 0 26px;}
+form{max-width:300px;margin:0 auto;border:1px solid #8a9078;background:#dbe1cd;padding:18px 18px 20px;}
 label{display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#5a6048;margin:0 0 6px;text-align:left;}
-input{width:100%;padding:14px;border:1px solid #8a9078;background:#eef1e4;color:#23271d;
- font:inherit;font-size:20px;letter-spacing:6px;text-align:center;border-radius:0;}
+input{width:100%;padding:12px 14px;border:1px solid #8a9078;background:#eef1e4;color:#23271d;
+ font:inherit;font-size:26px;letter-spacing:14px;text-indent:14px;text-align:center;border-radius:0;
+ -webkit-appearance:none;appearance:none;}
+input:focus{outline:2px solid #c05a1e;outline-offset:-1px;}
+input::placeholder{color:#8a9078;}
 button{width:100%;padding:14px;margin-top:14px;border:1px solid #c05a1e;background:#c05a1e;
  color:#fff;font:inherit;font-size:14px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:0;}
 .err{color:#9c3312;font-size:12px;margin-top:12px;}
 </style></head><body>
-<h1>[ FLUGVEL ]</h1><p>Enter the code shown on the device</p>
+<h1><b>[</b> FLUGVEL <b>]</b></h1><p>Enter the code on the device</p>
 <form method="POST" action="/">
 <label for="pin">Code</label>
-<input id="pin" type="text" name="pin" inputmode="numeric" maxlength="4" autofocus>
+<input id="pin" type="text" name="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="----" autocomplete="off" autofocus>
 <button type="submit">Unlock</button>)rawliteral";
 
     if (wrong) page += "<p class=\"err\">That code did not match.</p>";
