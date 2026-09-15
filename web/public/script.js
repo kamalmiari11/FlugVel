@@ -112,15 +112,29 @@
       dot.type = "button";
       dot.title = h ? h.textContent.replace(/^\s*\d+\.\s*/, "").trim() : "Section " + (i + 1);
       dot.setAttribute("aria-label", dot.title);
-      dot.addEventListener("click", function () {
-        // Land the section just under the sticky tab bar.
-        var top = sec.getBoundingClientRect().top - screen.getBoundingClientRect().top + screen.scrollTop;
-        screen.scrollTo({ top: Math.max(0, top - (bar ? bar.offsetHeight : 0)), behavior: reduceMotion ? "auto" : "smooth" });
-      });
+      dot.addEventListener("click", function () { goToSection(i); });
       pager.appendChild(dot);
     });
     screen.parentElement.appendChild(pager);
     var dots = pager.children, lit = -1;
+
+    // Land a section just under the sticky tab bar.
+    var goToSection = function (i) {
+      var sec = sections[i];
+      var top = sec.getBoundingClientRect().top - screen.getBoundingClientRect().top + screen.scrollTop;
+      screen.scrollTo({ top: Math.max(0, top - (bar ? bar.offsetHeight : 0)), behavior: reduceMotion ? "auto" : "smooth" });
+    };
+
+    // The KO button on the case steps to the next section, like KO acting
+    // on the current screen of the real device. From the last one it wraps
+    // back to the top.
+    if (btn) {
+      btn.addEventListener("click", function () {
+        press();
+        updatePager();
+        goToSection(lit + 1 < sections.length ? lit + 1 : 0);
+      });
+    }
 
     var placePager = function () {
       pager.style.top = screen.offsetTop + "px";

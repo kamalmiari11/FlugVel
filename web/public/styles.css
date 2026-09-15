@@ -391,6 +391,7 @@ body {
 }
 .kobtn {
   position: relative; width: 78px; height: 78px; border-radius: 15px; flex: none;
+  cursor: pointer; /* steps to the next section (script.js) */
   background: linear-gradient(155deg, #a2835f, #8d7458 45%, #6b5540 85%);
   border: 1px solid #3c301f;
   box-shadow:
