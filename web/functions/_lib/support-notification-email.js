@@ -3,7 +3,7 @@
 // conventions this mirrors (inline styles, <table> layout, no web fonts)
 // and why.
 
-export const supportNotificationSubject = (name, email) => `Support message from ${name || email}`;
+export const supportNotificationSubject = (name, email) => `[FlugVel support] Message from ${name || email}`;
 
 export const supportNotificationText = (name, email, message) =>
   `From: ${name ? `${name} <${email}>` : email}\n\n${message}\n`;

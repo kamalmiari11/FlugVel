@@ -16,11 +16,18 @@ const SUPPORT_TO = "kml@flugvel.com";
 // Unlike /api/subscribe, this never touches D1 - the destination inbox IS
 // the record; there's nothing here worth keeping a second copy of.
 //
-// Skipped: server-side rate limiting (subscribe.js's IP+D1 throttle). The
-// honeypot below covers the common bot case, and a private inbox getting
-// occasionally spammed is a much smaller problem than a public mailing
-// list's sending quota getting burned - add a throttle here if that
-// changes.
+// Rate limited per IP (same D1 throttle as subscribe.js, keyed "support:"
+// so the two forms don't share a budget). Every submission sends an email
+// to an address the visitor typed, so without a cap the form is a free way
+// to hammer a stranger's inbox from flugvel.com - which is exactly what
+// gets a sending domain's reputation burned.
+const RATE_LIMIT_MAX = 3;
+const RATE_LIMIT_WINDOW_MINUTES = 10;
+
+// Replies to the confirmation go to a real, monitored inbox. A no-reply
+// sender that bounces replies is itself a spam signal.
+const REPLY_TO = SUPPORT_TO;
+
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -53,6 +60,34 @@ export async function onRequestPost(context) {
 
   if (!env.RESEND_API_KEY) {
     return json({ error: "Server not configured for sending" }, { status: 500 });
+  }
+
+  if (env.DB) {
+    const key = "support:" + (request.headers.get("CF-Connecting-IP") || "unknown");
+    try {
+      const attempts = await env.DB.prepare(
+        `SELECT count FROM subscribe_attempts
+         WHERE ip = ? AND window_start > datetime('now', '-${RATE_LIMIT_WINDOW_MINUTES} minutes')`
+      ).bind(key).first();
+      if (attempts && attempts.count >= RATE_LIMIT_MAX) {
+        return json({ error: "Too many messages from this connection. Try again later." }, { status: 429 });
+      }
+      await env.DB.prepare(
+        `INSERT INTO subscribe_attempts (ip, count, window_start)
+         VALUES (?, 1, datetime('now'))
+         ON CONFLICT(ip) DO UPDATE SET
+           count = CASE
+             WHEN window_start <= datetime('now', '-${RATE_LIMIT_WINDOW_MINUTES} minutes') THEN 1
+             ELSE count + 1
+           END,
+           window_start = CASE
+             WHEN window_start <= datetime('now', '-${RATE_LIMIT_WINDOW_MINUTES} minutes') THEN datetime('now')
+             ELSE window_start
+           END`
+      ).bind(key).run();
+    } catch {
+      // Best-effort, same as subscribe.js - a throttle glitch never blocks a real message.
+    }
   }
 
   try {
@@ -95,9 +130,16 @@ export async function onRequestPost(context) {
       body: JSON.stringify({
         from: env.RESEND_FROM || "FlugVel <onboarding@resend.dev>",
         to: email,
+        reply_to: REPLY_TO,
         subject: SUPPORT_CONFIRMATION_SUBJECT,
-        text: supportConfirmationText(name, message),
-        html: supportConfirmationHtml(name, message),
+        text: supportConfirmationText(),
+        html: supportConfirmationHtml(),
+        headers: {
+          // RFC 3834: marks this as an automatic reply, so other
+          // autoresponders don't answer it (no mail loops) and filters
+          // treat it as the transactional message it is.
+          "Auto-Submitted": "auto-replied",
+        },
       }),
     });
   } catch {

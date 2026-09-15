@@ -127,6 +127,9 @@ export async function onRequestPost(context) {
         body: JSON.stringify({
           from: env.RESEND_FROM || "FlugVel <onboarding@resend.dev>",
           to: email,
+          // A monitored inbox, not a no-reply - and it's what the
+          // unsubscribe page's "reply to be removed by hand" relies on.
+          reply_to: "kml@flugvel.com",
           subject: WELCOME_EMAIL_SUBJECT,
           text: welcomeEmailText(unsubUrl),
           html: welcomeEmailHtml(unsubUrl),
