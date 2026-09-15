@@ -179,6 +179,12 @@ label, .n, .caption, .step-num, th { font-family: var(--mono); }
 .hero-split .cta-row { justify-content: flex-start; }
 .hero-split .eyebrow { margin-left: 0; }
 .hero-split .sub { margin: 0 0 32px; }
+/* The hero paragraph is four short beats: a small gap between them instead
+   of a full blank line, so the button stays near the top of the screen. */
+.hero-lines span { display: block; }
+.hero-lines span + span { margin-top: 6px; }
+.hero-split .hero-lines { margin-bottom: 26px; }
+.hero-split h1 { font-size: clamp(30px, 4vw + 8px, 40px); }
 .hero-split .hero-media { flex: 1 1 0; display: flex; justify-content: center; }
 .hero-video {
   display: block;
