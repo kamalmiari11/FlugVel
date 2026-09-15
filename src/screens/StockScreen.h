@@ -56,14 +56,9 @@ private:
     int  _pendingCount;
     bool _pendingAnyOk;
     bool _pendingDone;   // true once every configured symbol has been tried -
-                          // see fetchTaskEntry(): results publish one at a
-                          // time as they land, so the screen fills in row by
-                          // row instead of waiting for the whole batch, and
-                          // pacing a beat between each fetch (rather than
-                          // firing all of them back-to-back) leaves other
-                          // background tasks' own TLS handshakes room to
-                          // finish instead of every attempt racing for the
-                          // same limited heap at once.
+                          // fetchTaskEntry() publishes the whole batch at once
+                          // at the end, pacing a beat between symbols so other
+                          // tasks' TLS handshakes aren't starved of heap.
     void startFetch();
     static void fetchTaskEntry(void *param);
     void applyPending();

@@ -30,26 +30,13 @@ void StockScreen::startFetch() {
 void StockScreen::fetchTaskEntry(void *param) {
     StockScreen *self = static_cast<StockScreen*>(param);
     int n = StockSource::symbolCount();
+    if (n > StockSource::MAX_SYMBOLS) n = StockSource::MAX_SYMBOLS;
     bool anyOk = false;
+    StockQuote results[StockSource::MAX_SYMBOLS];
 
     for (int i = 0; i < n; i++) {
         String sym = StockSource::symbolAt(i);
-        StockQuote q;
-        anyOk |= fetchStockQuote(sym, StockSource::apiKey(), q);
-
-        // Publish what's landed so far - update() copies this into the live
-        // _quotes/_count each loop tick (see applyPending()), so a row
-        // appears on screen as soon as its own fetch finishes instead of
-        // the whole list waiting on the slowest/last symbol.
-        if (xSemaphoreTake(self->_fetchMutex, portMAX_DELAY) == pdTRUE) {
-            self->_pendingQuotes[i] = q;
-            self->_pendingCount     = i + 1;
-            self->_pendingAnyOk     = anyOk;
-            self->_pendingDone      = (i == n - 1);
-            self->_pendingReady     = true;
-            if (i == n - 1) self->_fetching = false;
-            xSemaphoreGive(self->_fetchMutex);
-        }
+        anyOk |= fetchStockQuote(sym, StockSource::apiKey(), results[i]);
 
         // A beat between symbols, not just back-to-back: this is what
         // actually fixed the "SSL - Memory allocation failed" errors -
@@ -60,14 +47,18 @@ void StockScreen::fetchTaskEntry(void *param) {
         if (i < n - 1) vTaskDelay(pdMS_TO_TICKS(800));
     }
 
-    if (n == 0) {
-        // Nothing configured to fetch - still have to clear _fetching, or
-        // update() would think a fetch is forever in flight and never try
-        // again.
-        if (xSemaphoreTake(self->_fetchMutex, portMAX_DELAY) == pdTRUE) {
-            self->_fetching = false;
-            xSemaphoreGive(self->_fetchMutex);
-        }
+    // Publish the whole batch in one go, like CalendarScreen - the list
+    // swaps from skeletons (first load) or the previous prices (refresh)
+    // to the new set at once, instead of rows popping in one by one.
+    // Runs for n == 0 too, since it's what clears _fetching.
+    if (xSemaphoreTake(self->_fetchMutex, portMAX_DELAY) == pdTRUE) {
+        for (int i = 0; i < n; i++) self->_pendingQuotes[i] = results[i];
+        self->_pendingCount = n;
+        self->_pendingAnyOk = anyOk;
+        self->_pendingDone  = true;
+        self->_pendingReady = n > 0;
+        self->_fetching     = false;
+        xSemaphoreGive(self->_fetchMutex);
     }
 
     vTaskDelete(nullptr);
@@ -103,6 +94,7 @@ void StockScreen::applyPending() {
 void StockScreen::onConfigChanged() {
     _fetched   = false;   // update() refetches on the next tick
     _lastFetch = 0;
+    _count = 0;           // old symbols' prices would sit under new tickers until the batch lands
     _sel = 0; _scroll = 0;
     _needsRedraw = true;
 }
